@@ -223,5 +223,5 @@ else:
 For questions or issues:
 - Check the example files in `examples/`
 - Review the SDK documentation
-- Open an issue on the repository
+- Open an issue on the [repository](https://github.com/ujjalsharma100/curio-agent-sdk/issues)
 

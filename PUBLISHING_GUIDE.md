@@ -110,14 +110,14 @@ __version__ = "0.1.0"  # Update this
 
 ### 2. Update Project URLs (if needed)
 
-In `pyproject.toml`, update the URLs if you have a real repository:
+In `pyproject.toml`, update the URLs with the actual repository:
 
 ```toml
 [project.urls]
-Homepage = "https://github.com/your-org/curio-agent-sdk"
-Documentation = "https://github.com/your-org/curio-agent-sdk#readme"
-Repository = "https://github.com/your-org/curio-agent-sdk.git"
-Issues = "https://github.com/your-org/curio-agent-sdk/issues"
+Homepage = "https://github.com/ujjalsharma100/curio-agent-sdk"
+Documentation = "https://github.com/ujjalsharma100/curio-agent-sdk#readme"
+Repository = "https://github.com/ujjalsharma100/curio-agent-sdk.git"
+Issues = "https://github.com/ujjalsharma100/curio-agent-sdk/issues"
 ```
 
 ### 3. Verify Package Structure

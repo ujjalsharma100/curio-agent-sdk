@@ -11,6 +11,10 @@ A full-stack example application demonstrating the **Curio Agent SDK** with a Re
 - **Tiered Models**: Uses Groq models with tier-based routing
 - **Agent Transparency**: Shows which tools were used for each response
 
+## Screenshot
+
+![Chat Assistant Interface](./screenshots/Screenshot%202026-01-02%20at%201.55.23%E2%80%AFPM.png)
+
 ## Architecture
 
 ```
@@ -254,4 +258,4 @@ npm run build
 
 ## License
 
-This example is part of the Curio Agent SDK. See the main repository for license information.
+This example is part of the Curio Agent SDK. See the [main repository](https://github.com/ujjalsharma100/curio-agent-sdk) for license information.

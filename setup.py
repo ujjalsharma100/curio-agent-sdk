@@ -14,7 +14,7 @@ setup(
     description="A flexible, model-agnostic agentic framework for building autonomous AI agents",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/your-org/curio-agent-sdk",
+    url="https://github.com/ujjalsharma100/curio-agent-sdk",
     package_dir={"curio_agent_sdk": "."},
     packages=["curio_agent_sdk", "curio_agent_sdk.config", "curio_agent_sdk.core", "curio_agent_sdk.llm", "curio_agent_sdk.llm.providers", "curio_agent_sdk.persistence"],
     classifiers=[

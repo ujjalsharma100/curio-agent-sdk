@@ -51,10 +51,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/curio-agent-sdk"
-Documentation = "https://github.com/your-org/curio-agent-sdk#readme"
-Repository = "https://github.com/your-org/curio-agent-sdk.git"
-Issues = "https://github.com/your-org/curio-agent-sdk/issues"
+Homepage = "https://github.com/ujjalsharma100/curio-agent-sdk"
+Documentation = "https://github.com/ujjalsharma100/curio-agent-sdk#readme"
+Repository = "https://github.com/ujjalsharma100/curio-agent-sdk.git"
+Issues = "https://github.com/ujjalsharma100/curio-agent-sdk/issues"
 
 [tool.setuptools]
 package-dir = {"curio_agent_sdk" = "."}

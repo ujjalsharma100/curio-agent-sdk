@@ -2,6 +2,8 @@
 
 A flexible, model-agnostic agentic framework for building autonomous AI agents.
 
+**Repository**: [https://github.com/ujjalsharma100/curio-agent-sdk](https://github.com/ujjalsharma100/curio-agent-sdk)
+
 ## Overview
 
 Curio Agent SDK provides a comprehensive toolkit for building autonomous agents with:
@@ -620,7 +622,7 @@ print(f"Total tokens used: {total_tokens}")
 
 The SDK provides comprehensive observability through database persistence. A separate **Curio Agent Observability** tool provides a full-featured web dashboard for exploring agent activity, debugging runs, and analyzing LLM usage.
 
-> **Note**: The observability dashboard is a separate tool located in the `curio_agent_observability` directory (or separate repository). It reads from the same database that your agents use.
+> **Note**: The observability dashboard is a separate tool. See the [Curio Agent Observability repository](https://github.com/ujjalsharma100/curio-agent-observability) for installation and setup instructions. It reads from the same database that your agents use.
 
 ### Dashboard Features
 
@@ -636,17 +638,11 @@ The SDK provides comprehensive observability through database persistence. A sep
 
 **1. Navigate to the observability tool:**
 
-If you have the observability tool in the same repository:
+Clone the observability repository:
 
 ```bash
-cd ../curio_agent_observability
-```
-
-Or if it's in a separate repository:
-
-```bash
-git clone <observability-repo-url>
-cd curio_agent_observability
+git clone https://github.com/ujjalsharma100/curio-agent-observability.git
+cd curio-agent-observability
 ```
 
 **2. Install dependencies:**
@@ -702,7 +698,7 @@ npm start  # Runs on port 3000
 
 Navigate to `http://localhost:3000`
 
-For detailed setup instructions, see the [Curio Agent Observability README](../curio_agent_observability/README.md).
+For detailed setup instructions, see the [Curio Agent Observability README](https://github.com/ujjalsharma100/curio-agent-observability/blob/main/README.md).
 
 ### Example Workflow
 
