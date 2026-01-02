@@ -2,8 +2,6 @@
 
 A flexible, model-agnostic agentic framework for building autonomous AI agents.
 
-**Repository**: [https://github.com/ujjalsharma100/curio-agent-sdk](https://github.com/ujjalsharma100/curio-agent-sdk)
-
 ## Overview
 
 Curio Agent SDK provides a comprehensive toolkit for building autonomous agents with:
