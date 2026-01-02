@@ -56,8 +56,9 @@ Documentation = "https://github.com/your-org/curio-agent-sdk#readme"
 Repository = "https://github.com/your-org/curio-agent-sdk.git"
 Issues = "https://github.com/your-org/curio-agent-sdk/issues"
 
-[tool.setuptools.packages.find]
-exclude = ["tests*", "examples*"]
+[tool.setuptools]
+package-dir = {"curio_agent_sdk" = "."}
+packages = ["curio_agent_sdk", "curio_agent_sdk.config", "curio_agent_sdk.core", "curio_agent_sdk.llm", "curio_agent_sdk.llm.providers", "curio_agent_sdk.persistence"]
 
 [tool.black]
 line-length = 100

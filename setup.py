@@ -15,7 +15,8 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/your-org/curio-agent-sdk",
-    packages=find_packages(exclude=["tests", "examples"]),
+    package_dir={"curio_agent_sdk": "."},
+    packages=["curio_agent_sdk", "curio_agent_sdk.config", "curio_agent_sdk.core", "curio_agent_sdk.llm", "curio_agent_sdk.llm.providers", "curio_agent_sdk.persistence"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
