@@ -61,6 +61,21 @@ from curio_agent_sdk.middleware.rate_limit import RateLimitMiddleware
 # Human-in-the-loop
 from curio_agent_sdk.core.human_input import HumanInputHandler, CLIHumanInput
 
+# Memory
+from curio_agent_sdk.memory.base import Memory, MemoryEntry
+from curio_agent_sdk.memory.conversation import ConversationMemory
+from curio_agent_sdk.memory.vector import VectorMemory
+from curio_agent_sdk.memory.key_value import KeyValueMemory
+from curio_agent_sdk.memory.composite import CompositeMemory
+
+# Checkpointing
+from curio_agent_sdk.core.checkpoint import (
+    Checkpoint,
+    CheckpointStore,
+    InMemoryCheckpointStore,
+    FileCheckpointStore,
+)
+
 # Exceptions
 from curio_agent_sdk.exceptions import (
     CurioError,
@@ -80,7 +95,7 @@ from curio_agent_sdk.exceptions import (
 from curio_agent_sdk.core.object_identifier_map import ObjectIdentifierMap
 from curio_agent_sdk.core.context import ContextManager
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     # Core
@@ -129,6 +144,18 @@ __all__ = [
     # Human-in-the-loop
     "HumanInputHandler",
     "CLIHumanInput",
+    # Memory
+    "Memory",
+    "MemoryEntry",
+    "ConversationMemory",
+    "VectorMemory",
+    "KeyValueMemory",
+    "CompositeMemory",
+    # Checkpointing
+    "Checkpoint",
+    "CheckpointStore",
+    "InMemoryCheckpointStore",
+    "FileCheckpointStore",
     # Exceptions
     "CurioError",
     "LLMError",
