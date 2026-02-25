@@ -1,51 +1,33 @@
 """
 LLM module for Curio Agent SDK.
 
-This module provides a unified interface for interacting with different
-LLM providers (OpenAI, Anthropic, Groq, Ollama) with features like:
-- Model-agnostic API
+Provides async, message-based, provider-native LLM interface with:
+- Native tool/function calling
+- Streaming responses
 - Tiered model routing with automatic failover
-- Health tracking and rate limit handling
-- Round-robin key rotation
-- Usage tracking for observability
+- Round-robin key rotation with health tracking
+- Per-request API keys (thread-safe)
 """
 
-from curio_agent_sdk.llm.models import LLMConfig, LLMResponse
-from curio_agent_sdk.llm.service import (
-    LLMService,
-    call_llm,
-    call_llm_detailed,
-    initialize_llm_service,
-    get_llm_service,
-)
-from curio_agent_sdk.llm.routing import (
-    LLMRoutingConfig,
-    TierConfig,
-    ModelPriority,
-    ProviderConfig,
-    ModelConfig,
-    ProviderKey,
-    KeyStatus,
-)
+from curio_agent_sdk.llm.client import LLMClient
+from curio_agent_sdk.llm.router import TieredRouter, RouteResult, ProviderConfig, ProviderKey
+from curio_agent_sdk.llm.providers.base import LLMProvider
+from curio_agent_sdk.llm.providers.openai import OpenAIProvider
+from curio_agent_sdk.llm.providers.anthropic import AnthropicProvider
+from curio_agent_sdk.llm.providers.groq import GroqProvider
+from curio_agent_sdk.llm.providers.ollama import OllamaProvider
+from curio_agent_sdk.llm.token_counter import count_tokens
 
 __all__ = [
-    # Models
-    "LLMConfig",
-    "LLMResponse",
-
-    # Service
-    "LLMService",
-    "call_llm",
-    "call_llm_detailed",
-    "initialize_llm_service",
-    "get_llm_service",
-
-    # Routing
-    "LLMRoutingConfig",
-    "TierConfig",
-    "ModelPriority",
+    "LLMClient",
+    "TieredRouter",
+    "RouteResult",
     "ProviderConfig",
-    "ModelConfig",
     "ProviderKey",
-    "KeyStatus",
+    "LLMProvider",
+    "OpenAIProvider",
+    "AnthropicProvider",
+    "GroqProvider",
+    "OllamaProvider",
+    "count_tokens",
 ]

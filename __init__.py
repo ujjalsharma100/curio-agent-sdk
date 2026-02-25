@@ -1,119 +1,126 @@
 """
-Curio Agent SDK - A flexible, model-agnostic agentic framework.
+Curio Agent SDK - Production-grade agent harness.
 
-This SDK provides a comprehensive toolkit for building autonomous agents with:
-- Model-agnostic LLM calling with provider abstraction
-- Tiered model routing with automatic failover and health tracking
-- Object identifier maps for context window optimization
-- Flexible tool registry with decorator and docstring support
-- Plan-critique-synthesize agentic loop
-- Database persistence for observability
-- Highly configurable and extensible architecture
+Build any kind of agent: coding assistants, research agents,
+data intelligence tools, personal assistants, and more.
 
-Example:
-    from curio_agent_sdk import BaseAgent, AgentConfig, tool
+Quick start:
+    from curio_agent_sdk import Agent, tool
 
-    # Configure the SDK
-    config = AgentConfig.from_env()
+    @tool
+    def search(query: str) -> str:
+        '''Search the web.'''
+        return "search results..."
 
-    # Create your custom agent
-    class MyAgent(BaseAgent):
-        def get_agent_instructions(self):
-            return '''
-            You are a helpful assistant.
+    agent = Agent(
+        model="openai:gpt-4o",
+        tools=[search],
+        system_prompt="You are a helpful assistant.",
+    )
 
-            ## GUIDELINES
-            - Be concise and accurate
-            '''
-
-        def initialize_tools(self):
-            self.tool_registry.register_from_method(self.greet)
-
-        @tool(name="greet", description="Greet a user by name")
-        def greet(self, args):
-            return {"status": "ok", "result": f"Hello, {args.get('name', 'World')}!"}
-
-    # Run your agent
-    agent = MyAgent(agent_id="my-agent", config=config)
-    result = agent.run(objective="Greet the user Alice")
+    result = agent.run("What are the latest AI developments?")
+    print(result.output)
 """
 
-__version__ = "0.1.0"
-__author__ = "Curio Team"
+# Core
+from curio_agent_sdk.core.agent import Agent
+from curio_agent_sdk.core.state import AgentState
+from curio_agent_sdk.core.tools.tool import Tool, tool
+from curio_agent_sdk.core.tools.schema import ToolSchema, ToolParameter
+from curio_agent_sdk.core.tools.registry import ToolRegistry
+from curio_agent_sdk.core.tools.executor import ToolExecutor, ToolResult
 
-# Core exports
-from curio_agent_sdk.core.base_agent import BaseAgent
-from curio_agent_sdk.core.object_identifier_map import ObjectIdentifierMap
-from curio_agent_sdk.core.tool_registry import ToolRegistry, tool
-from curio_agent_sdk.core.models import (
-    AgentRun,
-    AgentRunEvent,
-    AgentLLMUsage,
-)
+# Loops
+from curio_agent_sdk.core.loops.base import AgentLoop
+from curio_agent_sdk.core.loops.tool_calling import ToolCallingLoop
+from curio_agent_sdk.core.loops.plan_critique import PlanCritiqueSynthesizeLoop
 
-# LLM exports
-from curio_agent_sdk.llm.service import LLMService, call_llm, get_llm_service, initialize_llm_service
-from curio_agent_sdk.llm.models import LLMConfig, LLMResponse
-from curio_agent_sdk.llm.routing import LLMRoutingConfig, TierConfig, ModelPriority, ProviderConfig, ModelConfig
+# LLM
+from curio_agent_sdk.llm.client import LLMClient
+from curio_agent_sdk.llm.router import TieredRouter
+from curio_agent_sdk.llm.providers.base import LLMProvider
 
-# Provider exports
-from curio_agent_sdk.llm.providers import (
-    LLMProvider,
-    OpenAIProvider,
-    AnthropicProvider,
-    GroqProvider,
-    OllamaProvider,
-)
+# Models
+from curio_agent_sdk.models.llm import Message, ToolCall, TokenUsage, LLMRequest, LLMResponse
+from curio_agent_sdk.models.agent import AgentRunResult, AgentRun, AgentRunStatus
+from curio_agent_sdk.models.events import EventType, StreamEvent, AgentEvent
 
-# Persistence exports
-from curio_agent_sdk.persistence.base import BasePersistence
-from curio_agent_sdk.persistence.postgres import PostgresPersistence
-from curio_agent_sdk.persistence.sqlite import SQLitePersistence
-from curio_agent_sdk.persistence.memory import InMemoryPersistence
-
-# Config exports
+# Config
 from curio_agent_sdk.config.settings import AgentConfig, DatabaseConfig
 
+# Persistence
+from curio_agent_sdk.persistence.base import BasePersistence
+
+# Exceptions
+from curio_agent_sdk.exceptions import (
+    CurioError,
+    LLMError,
+    LLMRateLimitError,
+    ToolError,
+    ToolNotFoundError,
+    ToolExecutionError,
+    ToolTimeoutError,
+    AgentError,
+    AgentTimeoutError,
+    NoAvailableModelError,
+    CostBudgetExceeded,
+)
+
+# Context optimization
+from curio_agent_sdk.core.object_identifier_map import ObjectIdentifierMap
+from curio_agent_sdk.core.context import ContextManager
+
+__version__ = "0.2.0"
+
 __all__ = [
-    # Version
-    "__version__",
-
     # Core
-    "BaseAgent",
-    "ObjectIdentifierMap",
-    "ToolRegistry",
+    "Agent",
+    "AgentState",
+    "Tool",
     "tool",
-    "AgentRun",
-    "AgentRunEvent",
-    "AgentLLMUsage",
-
+    "ToolSchema",
+    "ToolParameter",
+    "ToolRegistry",
+    "ToolExecutor",
+    "ToolResult",
+    # Loops
+    "AgentLoop",
+    "ToolCallingLoop",
+    "PlanCritiqueSynthesizeLoop",
     # LLM
-    "LLMService",
-    "call_llm",
-    "get_llm_service",
-    "initialize_llm_service",
-    "LLMConfig",
-    "LLMResponse",
-    "LLMRoutingConfig",
-    "TierConfig",
-    "ModelPriority",
-    "ProviderConfig",
-    "ModelConfig",
-
-    # Providers
+    "LLMClient",
+    "TieredRouter",
     "LLMProvider",
-    "OpenAIProvider",
-    "AnthropicProvider",
-    "GroqProvider",
-    "OllamaProvider",
-
-    # Persistence
-    "BasePersistence",
-    "PostgresPersistence",
-    "SQLitePersistence",
-    "InMemoryPersistence",
-
+    "Message",
+    "ToolCall",
+    "TokenUsage",
+    "LLMRequest",
+    "LLMResponse",
+    # Models
+    "AgentRunResult",
+    "AgentRun",
+    "AgentRunStatus",
+    "EventType",
+    "StreamEvent",
+    "AgentEvent",
     # Config
     "AgentConfig",
     "DatabaseConfig",
+    # Persistence
+    "BasePersistence",
+    # Exceptions
+    "CurioError",
+    "LLMError",
+    "LLMRateLimitError",
+    "ToolError",
+    "ToolNotFoundError",
+    "ToolExecutionError",
+    "ToolTimeoutError",
+    "AgentError",
+    "AgentTimeoutError",
+    "NoAvailableModelError",
+    "CostBudgetExceeded",
+    # Utilities
+    "ObjectIdentifierMap",
+    "ContextManager",
 ]

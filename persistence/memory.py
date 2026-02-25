@@ -9,7 +9,7 @@ from datetime import datetime
 import logging
 
 from curio_agent_sdk.persistence.base import BasePersistence
-from curio_agent_sdk.core.models import AgentRun, AgentRunEvent, AgentLLMUsage, AgentRunStatus
+from curio_agent_sdk.models.agent import AgentRun, AgentRunEvent, AgentLLMUsage, AgentRunStatus
 
 logger = logging.getLogger(__name__)
 

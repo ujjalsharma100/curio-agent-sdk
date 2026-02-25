@@ -11,7 +11,7 @@ from contextlib import contextmanager
 import logging
 
 from curio_agent_sdk.persistence.base import BasePersistence
-from curio_agent_sdk.core.models import AgentRun, AgentRunEvent, AgentLLMUsage
+from curio_agent_sdk.models.agent import AgentRun, AgentRunEvent, AgentLLMUsage
 
 logger = logging.getLogger(__name__)
 

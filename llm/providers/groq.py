@@ -1,290 +1,250 @@
 """
-Groq provider implementation with hybrid HTTP/client library approach.
+Groq provider with async and native tool calling support.
+
+Groq uses OpenAI-compatible API, so this leverages the openai async client.
 """
 
+from __future__ import annotations
+
+import json
 import logging
-import requests
-from typing import Optional
+import time
+from typing import AsyncIterator
 
 from curio_agent_sdk.llm.providers.base import LLMProvider
-from curio_agent_sdk.llm.models import LLMConfig, LLMResponse
+from curio_agent_sdk.models.llm import (
+    LLMRequest,
+    LLMResponse,
+    LLMStreamChunk,
+    Message,
+    ToolCall,
+    TokenUsage,
+)
+from curio_agent_sdk.exceptions import (
+    LLMRateLimitError,
+    LLMAuthenticationError,
+    LLMProviderError,
+)
 
 logger = logging.getLogger(__name__)
 
 try:
-    import groq
-    GROQ_AVAILABLE = True
+    from openai import AsyncOpenAI, APIError, RateLimitError, AuthenticationError
+    OPENAI_AVAILABLE = True
 except ImportError:
-    GROQ_AVAILABLE = False
-    logger.warning("Groq library not installed. Install with: pip install groq")
+    OPENAI_AVAILABLE = False
+
+
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 
 class GroqProvider(LLMProvider):
     """
-    Groq provider implementation with hybrid approach.
+    Groq provider using OpenAI-compatible async client.
 
-    Uses direct HTTP for immediate 429 detection (better for model rotation)
-    and client library as fallback with built-in retries.
-
-    Supports Llama, Mixtral, and other models via Groq's fast inference.
-
-    Example:
-        >>> config = LLMConfig(
-        ...     provider="groq",
-        ...     api_key="gsk_...",
-        ...     model="llama-3.1-8b-instant",
-        ... )
-        >>> provider = GroqProvider(config)
-        >>> response = provider.call("Hello, world!")
-        >>> print(response.content)
+    Groq's API is OpenAI-compatible, so we use the openai async client
+    pointed at Groq's base URL. This gives us native tool calling,
+    streaming, and async support for free.
     """
 
-    GROQ_API_BASE_URL = "https://api.groq.com/openai/v1"
+    provider_name = "groq"
 
-    def _initialize_client(self) -> None:
-        """Initialize Groq provider with both HTTP and client options."""
-        if not self.config.api_key:
-            raise ValueError("Groq API key not provided")
+    def _get_client(self, api_key: str | None = None, base_url: str | None = None) -> AsyncOpenAI:
+        if not OPENAI_AVAILABLE:
+            raise ImportError("openai package required for Groq. Install with: pip install openai")
+        return AsyncOpenAI(
+            api_key=api_key or "",
+            base_url=base_url or GROQ_BASE_URL,
+        )
 
-        # Initialize client library as fallback (with retries enabled)
-        self.client_available = False
-        if GROQ_AVAILABLE:
-            try:
-                self.client = groq.Groq(
-                    api_key=self.config.api_key,
-                    max_retries=2,
-                )
-                self.client_available = True
-            except Exception as e:
-                logger.warning(f"Failed to initialize Groq client library: {e}")
+    def _build_messages(self, request: LLMRequest) -> list[dict]:
+        """Convert messages to OpenAI format (Groq-compatible)."""
+        messages = []
+        for msg in request.messages:
+            m: dict = {"role": msg.role}
+            if msg.role == "tool":
+                m["content"] = msg.content if isinstance(msg.content, str) else ""
+                m["tool_call_id"] = msg.tool_call_id or ""
+                if msg.name:
+                    m["name"] = msg.name
+            elif msg.role == "assistant" and msg.tool_calls:
+                m["content"] = msg.content if isinstance(msg.content, str) else ""
+                m["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.name,
+                            "arguments": json.dumps(tc.arguments) if isinstance(tc.arguments, dict) else tc.arguments,
+                        },
+                    }
+                    for tc in msg.tool_calls
+                ]
+            else:
+                m["content"] = msg.content if isinstance(msg.content, str) else ""
+            messages.append(m)
+        return messages
 
-    def call(self, prompt: str, use_client_library: bool = False, **kwargs) -> LLMResponse:
-        """
-        Call Groq API using either direct HTTP or client library.
-
-        Args:
-            prompt: The input prompt
-            use_client_library: If True, use Groq client library (with retries).
-                               If False, use direct HTTP (no retries, for rotation).
-            **kwargs: Additional parameters
-
-        Returns:
-            LLMResponse with generated content
-        """
-        # Use client library if requested and available
-        if use_client_library and self.client_available:
-            return self._call_with_client_library(prompt, **kwargs)
-        else:
-            # Use direct HTTP for immediate 429 detection and model rotation
-            return self._call_with_http(prompt, **kwargs)
-
-    def _call_with_client_library(self, prompt: str, **kwargs) -> LLMResponse:
-        """Call Groq API using client library (with automatic retries)."""
-        model = kwargs.get("model", self.config.model)
+    async def call(
+        self,
+        request: LLMRequest,
+        api_key: str | None = None,
+        base_url: str | None = None,
+    ) -> LLMResponse:
+        client = self._get_client(api_key, base_url)
+        model = request.model or "llama-3.1-8b-instant"
+        start = time.monotonic()
 
         try:
-            params = {
+            params: dict = {
                 "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": kwargs.get("max_tokens", self.config.max_tokens),
-                "temperature": kwargs.get("temperature", self.config.temperature),
+                "messages": self._build_messages(request),
+                "max_tokens": request.max_tokens,
+                "temperature": request.temperature,
             }
 
-            # Add optional parameters
-            if "top_p" in kwargs:
-                params["top_p"] = kwargs["top_p"]
-            if "stream" in kwargs:
-                params["stream"] = kwargs["stream"]
-            if "stop" in kwargs:
-                params["stop"] = kwargs["stop"]
+            if request.tools:
+                params["tools"] = [t.to_openai_format() for t in request.tools]
+                if request.tool_choice:
+                    if isinstance(request.tool_choice, str):
+                        params["tool_choice"] = request.tool_choice
 
-            logger.debug(f"Using Groq client library (with retries) for model: {model}")
-            response = self.client.chat.completions.create(**params)
+            if request.stop:
+                params["stop"] = request.stop
+
+            response = await client.chat.completions.create(**params)
+            latency_ms = int((time.monotonic() - start) * 1000)
+
+            choice = response.choices[0]
+            msg = choice.message
+
+            tool_calls = None
+            if msg.tool_calls:
+                tool_calls = []
+                for tc in msg.tool_calls:
+                    try:
+                        args = json.loads(tc.function.arguments) if tc.function.arguments else {}
+                    except json.JSONDecodeError:
+                        args = {"_raw": tc.function.arguments}
+                    tool_calls.append(ToolCall(id=tc.id, name=tc.function.name, arguments=args))
+
+            finish_reason = choice.finish_reason or "stop"
+            if finish_reason == "tool_calls":
+                finish_reason = "tool_use"
+
+            usage = TokenUsage()
+            if response.usage:
+                usage = TokenUsage(
+                    input_tokens=response.usage.prompt_tokens or 0,
+                    output_tokens=response.usage.completion_tokens or 0,
+                )
 
             return LLMResponse(
-                content=response.choices[0].message.content,
-                provider="groq",
-                model=response.model,
-                usage=response.usage.model_dump() if hasattr(response, 'usage') and response.usage else None,
+                message=Message(role="assistant", content=msg.content or "", tool_calls=tool_calls),
+                usage=usage,
+                model=response.model or model,
+                provider=self.provider_name,
+                finish_reason=finish_reason,
+                latency_ms=latency_ms,
+                raw_response=response,
             )
 
-        except Exception as e:
-            return self._handle_error(e, model)
+        except RateLimitError as e:
+            raise LLMRateLimitError(self.provider_name, model) from e
+        except AuthenticationError as e:
+            raise LLMAuthenticationError(str(e), self.provider_name, model) from e
+        except APIError as e:
+            status = getattr(e, "status_code", None)
+            raise LLMProviderError(str(e), self.provider_name, model, status) from e
 
-    def _call_with_http(self, prompt: str, **kwargs) -> LLMResponse:
-        """Call Groq API using direct HTTP POST (no automatic retries)."""
-        model = kwargs.get("model", self.config.model)
-
-        # Prepare request payload
-        payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": kwargs.get("max_tokens", self.config.max_tokens),
-            "temperature": kwargs.get("temperature", self.config.temperature),
-        }
-
-        # Add optional parameters
-        if "top_p" in kwargs:
-            payload["top_p"] = kwargs["top_p"]
-        if "stream" in kwargs:
-            payload["stream"] = kwargs["stream"]
-        if "stop" in kwargs:
-            payload["stop"] = kwargs["stop"]
-
-        headers = {
-            "Authorization": f"Bearer {self.config.api_key}",
-            "Content-Type": "application/json",
-        }
-
-        url = f"{self.GROQ_API_BASE_URL}/chat/completions"
+    async def stream(
+        self,
+        request: LLMRequest,
+        api_key: str | None = None,
+        base_url: str | None = None,
+    ) -> AsyncIterator[LLMStreamChunk]:
+        client = self._get_client(api_key, base_url)
+        model = request.model or "llama-3.1-8b-instant"
 
         try:
-            logger.debug(f"Making HTTP POST to Groq API: model={model}")
+            params: dict = {
+                "model": model,
+                "messages": self._build_messages(request),
+                "max_tokens": request.max_tokens,
+                "temperature": request.temperature,
+                "stream": True,
+            }
 
-            response = requests.post(
-                url,
-                headers=headers,
-                json=payload,
-                timeout=60,
-            )
+            if request.tools:
+                params["tools"] = [t.to_openai_format() for t in request.tools]
+            if request.stop:
+                params["stop"] = request.stop
 
-            status_code = response.status_code
+            stream = await client.chat.completions.create(**params)
+            current_tool_calls: dict[int, dict] = {}
 
-            # Handle 429 rate limit error
-            if status_code == 429:
-                error_data = {}
-                try:
-                    error_data = response.json()
-                except:
-                    error_data = {"error": {"message": response.text or "Rate limit exceeded"}}
+            async for chunk in stream:
+                if not chunk.choices:
+                    if chunk.usage:
+                        yield LLMStreamChunk(
+                            type="usage",
+                            usage=TokenUsage(
+                                input_tokens=chunk.usage.prompt_tokens or 0,
+                                output_tokens=chunk.usage.completion_tokens or 0,
+                            ),
+                        )
+                    continue
 
-                error_message = error_data.get("error", {}).get("message", "Rate limit exceeded (429)")
-                logger.warning(f"Groq API 429 rate limit: {error_message}")
+                delta = chunk.choices[0].delta
+                finish = chunk.choices[0].finish_reason
 
-                return LLMResponse(
-                    content="",
-                    provider="groq",
-                    model=model,
-                    error=f"Rate limit exceeded: {error_message}",
-                    usage={"is_rate_limit": True, "status_code": 429, "error_type": "RateLimitError"},
-                )
+                if delta.content:
+                    yield LLMStreamChunk(type="text_delta", text=delta.content)
 
-            # Handle other HTTP errors
-            if status_code >= 400:
-                error_data = {}
-                try:
-                    error_data = response.json()
-                except:
-                    error_data = {"error": {"message": response.text or f"HTTP {status_code} error"}}
+                if delta.tool_calls:
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index
+                        if idx not in current_tool_calls:
+                            current_tool_calls[idx] = {
+                                "id": tc_delta.id or "",
+                                "name": tc_delta.function.name if tc_delta.function and tc_delta.function.name else "",
+                                "arguments": "",
+                            }
+                            if current_tool_calls[idx]["name"]:
+                                yield LLMStreamChunk(
+                                    type="tool_call_start",
+                                    tool_call=ToolCall(
+                                        id=current_tool_calls[idx]["id"],
+                                        name=current_tool_calls[idx]["name"],
+                                        arguments={},
+                                    ),
+                                )
+                        if tc_delta.function and tc_delta.function.arguments:
+                            current_tool_calls[idx]["arguments"] += tc_delta.function.arguments
+                            yield LLMStreamChunk(
+                                type="tool_call_delta",
+                                tool_call_id=current_tool_calls[idx]["id"],
+                                argument_delta=tc_delta.function.arguments,
+                            )
 
-                error_message = error_data.get("error", {}).get("message", f"HTTP {status_code} error")
-                logger.error(f"Groq API error ({status_code}): {error_message}")
+                if finish:
+                    for tc_data in current_tool_calls.values():
+                        try:
+                            args = json.loads(tc_data["arguments"]) if tc_data["arguments"] else {}
+                        except json.JSONDecodeError:
+                            args = {"_raw": tc_data["arguments"]}
+                        yield LLMStreamChunk(
+                            type="tool_call_end",
+                            tool_call=ToolCall(id=tc_data["id"], name=tc_data["name"], arguments=args),
+                        )
+                    yield LLMStreamChunk(
+                        type="done",
+                        finish_reason="tool_use" if finish == "tool_calls" else finish,
+                    )
 
-                return LLMResponse(
-                    content="",
-                    provider="groq",
-                    model=model,
-                    error=f"HTTP {status_code}: {error_message}",
-                    usage={"is_rate_limit": False, "status_code": status_code},
-                )
-
-            # Parse successful response
-            response_data = response.json()
-
-            if "choices" not in response_data or not response_data["choices"]:
-                error_msg = "Invalid response format from Groq API"
-                logger.error(error_msg)
-                return LLMResponse(
-                    content="",
-                    provider="groq",
-                    model=model,
-                    error=error_msg,
-                )
-
-            choice = response_data["choices"][0]
-            content = choice.get("message", {}).get("content", "")
-            response_model = response_data.get("model", model)
-
-            # Extract usage information
-            usage_info = response_data.get("usage")
-
-            logger.debug(
-                f"Groq API success: model={response_model}, "
-                f"tokens={usage_info.get('total_tokens', 'unknown') if usage_info else 'unknown'}"
-            )
-
-            return LLMResponse(
-                content=content,
-                provider="groq",
-                model=response_model,
-                usage=usage_info,
-            )
-
-        except requests.exceptions.Timeout:
-            error_msg = "Request timeout"
-            logger.error(f"Groq API timeout: {error_msg}")
-            return LLMResponse(
-                content="",
-                provider="groq",
-                model=model,
-                error=error_msg,
-            )
-
-        except requests.exceptions.RequestException as e:
-            error_str = str(e)
-            error_type = type(e).__name__
-            logger.error(f"Groq API request exception ({error_type}): {error_str}")
-
-            # Check if it's a connection error that might indicate rate limiting
-            is_rate_limit = "429" in error_str or "rate limit" in error_str.lower()
-
-            return LLMResponse(
-                content="",
-                provider="groq",
-                model=model,
-                error=error_str,
-                usage={"is_rate_limit": is_rate_limit, "error_type": error_type} if is_rate_limit else None,
-            )
-
-        except Exception as e:
-            return self._handle_error(e, model)
-
-    def _handle_error(self, e: Exception, model: str) -> LLMResponse:
-        """Handle an exception and return appropriate LLMResponse."""
-        error_str = str(e)
-        error_type = type(e).__name__
-
-        # Check for rate limit errors
-        is_rate_limit = False
-        status_code = None
-
-        # Check exception type
-        if any(keyword in error_type.lower() for keyword in ["ratelimit", "rate_limit", "throttle"]):
-            is_rate_limit = True
-            logger.info(f"Detected rate limit from exception type: {error_type}")
-
-        # Check status code
-        if hasattr(e, 'status_code'):
-            status_code = e.status_code
-            if status_code == 429:
-                is_rate_limit = True
-        elif hasattr(e, 'response') and hasattr(e.response, 'status_code'):
-            status_code = e.response.status_code
-            if status_code == 429:
-                is_rate_limit = True
-
-        # Check error message
-        if not is_rate_limit:
-            error_lower = error_str.lower()
-            if any(keyword in error_lower for keyword in ["rate limit", "429", "too many requests", "quota exceeded", "throttled"]):
-                is_rate_limit = True
-
-        logger.error(f"Groq error ({error_type}): {error_str} (rate_limit: {is_rate_limit})")
-
-        return LLMResponse(
-            content="",
-            provider="groq",
-            model=model,
-            error=error_str,
-            usage={"is_rate_limit": is_rate_limit, "status_code": status_code, "error_type": error_type} if is_rate_limit else None,
-        )
+        except RateLimitError as e:
+            raise LLMRateLimitError(self.provider_name, model) from e
+        except AuthenticationError as e:
+            raise LLMAuthenticationError(str(e), self.provider_name, model) from e
+        except APIError as e:
+            raise LLMProviderError(str(e), self.provider_name, model) from e

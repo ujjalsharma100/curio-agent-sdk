@@ -1,211 +1,121 @@
 """
 Abstract base class for persistence implementations.
 
-All persistence backends must implement this interface.
+Supports both sync and async patterns. Sync implementations work out of
+the box. Async implementations can override the a* methods.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
-from curio_agent_sdk.core.models import AgentRun, AgentRunEvent, AgentLLMUsage
+from typing import Any
+import asyncio
+
+from curio_agent_sdk.models.agent import AgentRun, AgentRunEvent, AgentLLMUsage
 
 
 class BasePersistence(ABC):
     """
-    Abstract base class for persistence implementations.
+    Abstract base class for persistence backends.
 
-    All database backends (PostgreSQL, SQLite, in-memory) must implement
-    this interface to be used with the Curio Agent SDK.
+    Implementations:
+    - SQLitePersistence: File-based (development)
+    - PostgresPersistence: Production multi-user
+    - InMemoryPersistence: Testing
 
-    Example:
-        class MyPersistence(BasePersistence):
-            def create_agent_run(self, run: AgentRun) -> None:
-                # Your implementation
-                pass
-            # ... implement other methods
-
-        # Use with agent
-        persistence = MyPersistence()
-        agent = MyAgent("agent-1", persistence=persistence)
+    Sync methods are required. Async methods default to running
+    sync methods in a thread.
     """
 
-    # ==================== Agent Runs ====================
+    # === Agent Runs ===
 
     @abstractmethod
     def create_agent_run(self, run: AgentRun) -> None:
-        """
-        Create a new agent run record.
-
-        Args:
-            run: AgentRun to create
-        """
         pass
 
     @abstractmethod
     def update_agent_run(self, run_id: str, run: AgentRun) -> None:
-        """
-        Update an existing agent run record.
-
-        Args:
-            run_id: The run ID to update
-            run: Updated AgentRun data
-        """
         pass
 
     @abstractmethod
-    def get_agent_run(self, run_id: str) -> Optional[AgentRun]:
-        """
-        Get an agent run by ID.
-
-        Args:
-            run_id: The run ID to retrieve
-
-        Returns:
-            AgentRun or None if not found
-        """
+    def get_agent_run(self, run_id: str) -> AgentRun | None:
         pass
 
     @abstractmethod
     def get_agent_runs(
         self,
-        agent_id: Optional[str] = None,
+        agent_id: str | None = None,
         limit: int = 10,
         offset: int = 0,
-    ) -> List[AgentRun]:
-        """
-        Get agent runs with optional filtering.
-
-        Args:
-            agent_id: Filter by agent ID (optional)
-            limit: Maximum number of runs to return
-            offset: Offset for pagination
-
-        Returns:
-            List of AgentRun objects
-        """
+    ) -> list[AgentRun]:
         pass
 
     @abstractmethod
     def delete_agent_run(self, run_id: str) -> bool:
-        """
-        Delete an agent run.
-
-        Args:
-            run_id: The run ID to delete
-
-        Returns:
-            True if deleted, False if not found
-        """
         pass
 
-    # ==================== Agent Run Events ====================
+    # === Events ===
 
     @abstractmethod
     def log_agent_run_event(self, event: AgentRunEvent) -> None:
-        """
-        Log an agent run event.
-
-        Args:
-            event: AgentRunEvent to log
-        """
         pass
 
     @abstractmethod
     def get_agent_run_events(
         self,
         run_id: str,
-        event_type: Optional[str] = None,
-    ) -> List[AgentRunEvent]:
-        """
-        Get events for an agent run.
-
-        Args:
-            run_id: The run ID to get events for
-            event_type: Filter by event type (optional)
-
-        Returns:
-            List of AgentRunEvent objects
-        """
+        event_type: str | None = None,
+    ) -> list[AgentRunEvent]:
         pass
 
-    # ==================== LLM Usage ====================
+    # === LLM Usage ===
 
     @abstractmethod
     def log_llm_usage(self, usage: AgentLLMUsage) -> None:
-        """
-        Log LLM usage for tracking.
-
-        Args:
-            usage: AgentLLMUsage to log
-        """
         pass
 
     @abstractmethod
     def get_llm_usage(
         self,
-        agent_id: Optional[str] = None,
-        run_id: Optional[str] = None,
+        agent_id: str | None = None,
+        run_id: str | None = None,
         limit: int = 100,
-    ) -> List[AgentLLMUsage]:
-        """
-        Get LLM usage records.
-
-        Args:
-            agent_id: Filter by agent ID (optional)
-            run_id: Filter by run ID (optional)
-            limit: Maximum number of records to return
-
-        Returns:
-            List of AgentLLMUsage objects
-        """
+    ) -> list[AgentLLMUsage]:
         pass
 
-    # ==================== Statistics ====================
+    # === Stats ===
 
     @abstractmethod
-    def get_agent_run_stats(
-        self,
-        agent_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """
-        Get statistics for agent runs.
-
-        Args:
-            agent_id: Filter by agent ID (optional)
-
-        Returns:
-            Dictionary with statistics:
-            - total_runs: Total number of runs
-            - completed_runs: Number of completed runs
-            - error_runs: Number of failed runs
-            - avg_iterations: Average iterations per run
-            - total_llm_calls: Total LLM calls
-        """
+    def get_agent_run_stats(self, agent_id: str | None = None) -> dict[str, Any]:
         pass
 
-    # ==================== Optional Methods ====================
+    # === Lifecycle ===
 
     def initialize_schema(self) -> None:
-        """
-        Initialize the database schema.
-
-        This method should create all necessary tables if they don't exist.
-        Default implementation does nothing.
-        """
+        """Create tables if they don't exist."""
         pass
 
     def close(self) -> None:
-        """
-        Close any database connections.
-
-        Default implementation does nothing.
-        """
+        """Close connections."""
         pass
 
     def health_check(self) -> bool:
-        """
-        Check if the persistence layer is healthy.
-
-        Returns:
-            True if healthy, False otherwise
-        """
+        """Check if the backend is healthy."""
         return True
+
+    # === Async wrappers (run sync in thread by default) ===
+
+    async def acreate_agent_run(self, run: AgentRun) -> None:
+        await asyncio.to_thread(self.create_agent_run, run)
+
+    async def aupdate_agent_run(self, run_id: str, run: AgentRun) -> None:
+        await asyncio.to_thread(self.update_agent_run, run_id, run)
+
+    async def aget_agent_run(self, run_id: str) -> AgentRun | None:
+        return await asyncio.to_thread(self.get_agent_run, run_id)
+
+    async def alog_agent_run_event(self, event: AgentRunEvent) -> None:
+        await asyncio.to_thread(self.log_agent_run_event, event)
+
+    async def alog_llm_usage(self, usage: AgentLLMUsage) -> None:
+        await asyncio.to_thread(self.log_llm_usage, usage)

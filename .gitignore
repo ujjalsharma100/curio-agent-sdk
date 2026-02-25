@@ -170,3 +170,4 @@ config.local.py
 *.bak
 *.backup
 
+.agent-trace/

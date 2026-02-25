@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "agent-trace record"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "agent-trace record"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "agent-trace record"
+      }
+    ],
+    "afterTabFileEdit": [
+      {
+        "command": "agent-trace record"
+      }
+    ],
+    "afterShellExecution": [
+      {
+        "command": "agent-trace record"
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "agent-trace record"
+      }
+    ]
+  }
+}

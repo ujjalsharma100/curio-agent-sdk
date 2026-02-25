@@ -1,108 +1,302 @@
 """
-OpenAI provider implementation.
+OpenAI provider with async, native tool calling, and streaming support.
+
+Supports GPT-4o, GPT-4o-mini, o1, o3, and any OpenAI-compatible API.
 """
 
+from __future__ import annotations
+
+import json
 import logging
-from typing import Optional
+import time
+from typing import AsyncIterator
 
 from curio_agent_sdk.llm.providers.base import LLMProvider
-from curio_agent_sdk.llm.models import LLMConfig, LLMResponse
+from curio_agent_sdk.models.llm import (
+    LLMRequest,
+    LLMResponse,
+    LLMStreamChunk,
+    Message,
+    ToolCall,
+    TokenUsage,
+)
+from curio_agent_sdk.exceptions import (
+    LLMRateLimitError,
+    LLMAuthenticationError,
+    LLMProviderError,
+    LLMTimeoutError,
+)
 
 logger = logging.getLogger(__name__)
 
 try:
-    import openai
+    from openai import AsyncOpenAI, APIError, RateLimitError, AuthenticationError, APITimeoutError
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
-    logger.warning("OpenAI library not installed. Install with: pip install openai")
 
 
 class OpenAIProvider(LLMProvider):
     """
-    OpenAI provider implementation.
-
-    Supports GPT-3.5, GPT-4, and other OpenAI models.
-
-    Example:
-        >>> config = LLMConfig(
-        ...     provider="openai",
-        ...     api_key="sk-...",
-        ...     model="gpt-4",
-        ... )
-        >>> provider = OpenAIProvider(config)
-        >>> response = provider.call("Hello, world!")
-        >>> print(response.content)
+    OpenAI provider with full support for:
+    - Native tool/function calling
+    - Streaming responses
+    - Async operations
+    - Per-request API key (thread-safe)
+    - OpenAI-compatible APIs (vLLM, Together, etc.)
     """
 
-    def _initialize_client(self) -> None:
-        """Initialize OpenAI client."""
+    provider_name = "openai"
+
+    def _get_client(self, api_key: str | None = None, base_url: str | None = None) -> AsyncOpenAI:
+        """Create a client for this specific request. No shared mutable state."""
         if not OPENAI_AVAILABLE:
-            raise ImportError(
-                "OpenAI library not installed. Install with: pip install openai"
+            raise ImportError("openai package not installed. Install with: pip install openai")
+        kwargs = {}
+        if api_key:
+            kwargs["api_key"] = api_key
+        if base_url:
+            kwargs["base_url"] = base_url
+        return AsyncOpenAI(**kwargs)
+
+    def _build_messages(self, request: LLMRequest) -> list[dict]:
+        """Convert our Message objects to OpenAI's format."""
+        messages = []
+        for msg in request.messages:
+            m: dict = {"role": msg.role}
+
+            if msg.role == "tool":
+                m["content"] = msg.content if isinstance(msg.content, str) else ""
+                m["tool_call_id"] = msg.tool_call_id or ""
+                if msg.name:
+                    m["name"] = msg.name
+            elif msg.role == "assistant" and msg.tool_calls:
+                m["content"] = msg.content if isinstance(msg.content, str) else ""
+                m["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.name,
+                            "arguments": json.dumps(tc.arguments) if isinstance(tc.arguments, dict) else tc.arguments,
+                        },
+                    }
+                    for tc in msg.tool_calls
+                ]
+            else:
+                m["content"] = msg.content if isinstance(msg.content, str) else ""
+
+            messages.append(m)
+        return messages
+
+    def _build_tools(self, request: LLMRequest) -> list[dict] | None:
+        """Convert our ToolSchema objects to OpenAI's format."""
+        if not request.tools:
+            return None
+        return [t.to_openai_format() for t in request.tools]
+
+    def _parse_response(self, response, provider: str, model: str, latency_ms: int) -> LLMResponse:
+        """Parse OpenAI response into our LLMResponse."""
+        choice = response.choices[0]
+        msg = choice.message
+
+        # Parse tool calls
+        tool_calls = None
+        if msg.tool_calls:
+            tool_calls = []
+            for tc in msg.tool_calls:
+                try:
+                    args = json.loads(tc.function.arguments) if tc.function.arguments else {}
+                except json.JSONDecodeError:
+                    args = {"_raw": tc.function.arguments}
+                tool_calls.append(ToolCall(
+                    id=tc.id,
+                    name=tc.function.name,
+                    arguments=args,
+                ))
+
+        # Determine finish reason
+        finish_reason = choice.finish_reason or "stop"
+        if finish_reason == "tool_calls":
+            finish_reason = "tool_use"
+
+        # Parse usage
+        usage = TokenUsage()
+        if response.usage:
+            usage = TokenUsage(
+                input_tokens=response.usage.prompt_tokens or 0,
+                output_tokens=response.usage.completion_tokens or 0,
             )
 
-        if not self.config.api_key:
-            raise ValueError("OpenAI API key not provided")
+        return LLMResponse(
+            message=Message(
+                role="assistant",
+                content=msg.content or "",
+                tool_calls=tool_calls,
+            ),
+            usage=usage,
+            model=response.model or model,
+            provider=provider,
+            finish_reason=finish_reason,
+            latency_ms=latency_ms,
+            raw_response=response,
+        )
 
-        # Support custom base_url for OpenAI-compatible endpoints (e.g., on-prem deployments)
-        client_kwargs = {"api_key": self.config.api_key}
-        if self.config.base_url:
-            client_kwargs["base_url"] = self.config.base_url
-        
-        self.client = openai.OpenAI(**client_kwargs)
-
-    def call(self, prompt: str, **kwargs) -> LLMResponse:
-        """
-        Call OpenAI API.
-
-        Args:
-            prompt: The input prompt
-            **kwargs: Additional parameters (model, max_tokens, temperature, etc.)
-
-        Returns:
-            LLMResponse with generated content
-        """
-        model = kwargs.get("model", self.config.model)
+    async def call(
+        self,
+        request: LLMRequest,
+        api_key: str | None = None,
+        base_url: str | None = None,
+    ) -> LLMResponse:
+        client = self._get_client(api_key, base_url)
+        model = request.model or "gpt-4o-mini"
+        start = time.monotonic()
 
         try:
-            params = {
+            params: dict = {
                 "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": kwargs.get("max_tokens", self.config.max_tokens),
-                "temperature": kwargs.get("temperature", self.config.temperature),
+                "messages": self._build_messages(request),
+                "max_tokens": request.max_tokens,
+                "temperature": request.temperature,
             }
 
-            # Add optional parameters
-            if "top_p" in kwargs:
-                params["top_p"] = kwargs["top_p"]
-            if "stop" in kwargs:
-                params["stop"] = kwargs["stop"]
+            tools = self._build_tools(request)
+            if tools:
+                params["tools"] = tools
+                if request.tool_choice:
+                    if isinstance(request.tool_choice, str):
+                        params["tool_choice"] = request.tool_choice
+                    elif isinstance(request.tool_choice, dict) and "name" in request.tool_choice:
+                        params["tool_choice"] = {
+                            "type": "function",
+                            "function": {"name": request.tool_choice["name"]},
+                        }
 
-            response = self.client.chat.completions.create(**params)
+            if request.response_format:
+                params["response_format"] = request.response_format
+            if request.stop:
+                params["stop"] = request.stop
 
-            return LLMResponse(
-                content=response.choices[0].message.content,
-                provider="openai",
-                model=response.model,
-                usage=response.usage.model_dump() if hasattr(response, 'usage') and response.usage else None,
-            )
+            response = await client.chat.completions.create(**params)
+            latency_ms = int((time.monotonic() - start) * 1000)
 
-        except Exception as e:
-            error_str = str(e)
-            logger.error(f"OpenAI API error: {error_str}")
+            return self._parse_response(response, self.provider_name, model, latency_ms)
 
-            # Check for rate limit
-            is_rate_limit = (
-                "rate limit" in error_str.lower() or
-                "429" in error_str or
-                hasattr(e, 'status_code') and e.status_code == 429
-            )
+        except RateLimitError as e:
+            raise LLMRateLimitError(self.provider_name, model) from e
+        except AuthenticationError as e:
+            raise LLMAuthenticationError(str(e), self.provider_name, model) from e
+        except APITimeoutError as e:
+            raise LLMTimeoutError(str(e), self.provider_name, model) from e
+        except APIError as e:
+            status = getattr(e, "status_code", None)
+            raise LLMProviderError(str(e), self.provider_name, model, status) from e
 
-            return LLMResponse(
-                content="",
-                provider="openai",
-                model=model,
-                error=error_str,
-                usage={"is_rate_limit": is_rate_limit} if is_rate_limit else None,
-            )
+    async def stream(
+        self,
+        request: LLMRequest,
+        api_key: str | None = None,
+        base_url: str | None = None,
+    ) -> AsyncIterator[LLMStreamChunk]:
+        client = self._get_client(api_key, base_url)
+        model = request.model or "gpt-4o-mini"
+
+        try:
+            params: dict = {
+                "model": model,
+                "messages": self._build_messages(request),
+                "max_tokens": request.max_tokens,
+                "temperature": request.temperature,
+                "stream": True,
+                "stream_options": {"include_usage": True},
+            }
+
+            tools = self._build_tools(request)
+            if tools:
+                params["tools"] = tools
+                if request.tool_choice:
+                    if isinstance(request.tool_choice, str):
+                        params["tool_choice"] = request.tool_choice
+
+            if request.stop:
+                params["stop"] = request.stop
+
+            stream = await client.chat.completions.create(**params)
+
+            current_tool_calls: dict[int, dict] = {}
+
+            async for chunk in stream:
+                if not chunk.choices and chunk.usage:
+                    yield LLMStreamChunk(
+                        type="usage",
+                        usage=TokenUsage(
+                            input_tokens=chunk.usage.prompt_tokens or 0,
+                            output_tokens=chunk.usage.completion_tokens or 0,
+                        ),
+                    )
+                    continue
+
+                if not chunk.choices:
+                    continue
+
+                delta = chunk.choices[0].delta
+                finish = chunk.choices[0].finish_reason
+
+                # Text content
+                if delta.content:
+                    yield LLMStreamChunk(type="text_delta", text=delta.content)
+
+                # Tool calls
+                if delta.tool_calls:
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index
+                        if idx not in current_tool_calls:
+                            current_tool_calls[idx] = {
+                                "id": tc_delta.id or "",
+                                "name": tc_delta.function.name if tc_delta.function and tc_delta.function.name else "",
+                                "arguments": "",
+                            }
+                            if current_tool_calls[idx]["name"]:
+                                yield LLMStreamChunk(
+                                    type="tool_call_start",
+                                    tool_call=ToolCall(
+                                        id=current_tool_calls[idx]["id"],
+                                        name=current_tool_calls[idx]["name"],
+                                        arguments={},
+                                    ),
+                                )
+                        if tc_delta.function and tc_delta.function.arguments:
+                            current_tool_calls[idx]["arguments"] += tc_delta.function.arguments
+                            yield LLMStreamChunk(
+                                type="tool_call_delta",
+                                tool_call_id=current_tool_calls[idx]["id"],
+                                argument_delta=tc_delta.function.arguments,
+                            )
+
+                if finish:
+                    # Emit tool_call_end for completed tool calls
+                    for tc_data in current_tool_calls.values():
+                        try:
+                            args = json.loads(tc_data["arguments"]) if tc_data["arguments"] else {}
+                        except json.JSONDecodeError:
+                            args = {"_raw": tc_data["arguments"]}
+                        yield LLMStreamChunk(
+                            type="tool_call_end",
+                            tool_call=ToolCall(
+                                id=tc_data["id"],
+                                name=tc_data["name"],
+                                arguments=args,
+                            ),
+                        )
+
+                    yield LLMStreamChunk(
+                        type="done",
+                        finish_reason="tool_use" if finish == "tool_calls" else finish,
+                    )
+
+        except RateLimitError as e:
+            raise LLMRateLimitError(self.provider_name, model) from e
+        except AuthenticationError as e:
+            raise LLMAuthenticationError(str(e), self.provider_name, model) from e
+        except APIError as e:
+            raise LLMProviderError(str(e), self.provider_name, model) from e

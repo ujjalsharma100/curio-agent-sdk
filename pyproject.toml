@@ -4,42 +4,39 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "curio-agent-sdk"
-version = "0.1.0"
-description = "A flexible, model-agnostic agentic framework for building autonomous AI agents"
+version = "0.2.0"
+description = "Production-grade agent harness for building autonomous AI agents"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 authors = [
     {name = "Curio Team"}
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "requests>=2.28.0",
     "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=1.0.0"]
-anthropic = ["anthropic>=0.18.0"]
-groq = ["groq>=0.4.0"]
-ollama = ["ollama>=0.1.0"]
+openai = ["openai>=1.0.0", "tiktoken>=0.5.0"]
+anthropic = ["anthropic>=0.40.0"]
+groq = ["openai>=1.0.0", "tiktoken>=0.5.0"]  # Groq uses OpenAI-compatible client
+ollama = ["openai>=1.0.0"]  # Ollama uses OpenAI-compatible client
 postgres = ["psycopg2-binary>=2.9.0"]
 all = [
     "openai>=1.0.0",
-    "anthropic>=0.18.0",
-    "groq>=0.4.0",
-    "ollama>=0.1.0",
+    "anthropic>=0.40.0",
+    "tiktoken>=0.5.0",
     "psycopg2-binary>=2.9.0",
 ]
 dev = [
@@ -48,6 +45,7 @@ dev = [
     "black>=23.0.0",
     "isort>=5.12.0",
     "mypy>=1.0.0",
+    "ruff>=0.1.0",
 ]
 
 [project.urls]
@@ -58,18 +56,32 @@ Issues = "https://github.com/ujjalsharma100/curio-agent-sdk/issues"
 
 [tool.setuptools]
 package-dir = {"curio_agent_sdk" = "."}
-packages = ["curio_agent_sdk", "curio_agent_sdk.config", "curio_agent_sdk.core", "curio_agent_sdk.llm", "curio_agent_sdk.llm.providers", "curio_agent_sdk.persistence"]
+packages = [
+    "curio_agent_sdk",
+    "curio_agent_sdk.config",
+    "curio_agent_sdk.core",
+    "curio_agent_sdk.core.loops",
+    "curio_agent_sdk.core.tools",
+    "curio_agent_sdk.llm",
+    "curio_agent_sdk.llm.providers",
+    "curio_agent_sdk.models",
+    "curio_agent_sdk.persistence",
+]
 
 [tool.black]
 line-length = 100
-target-version = ["py39", "py310", "py311", "py312"]
+target-version = ["py311", "py312"]
 
 [tool.isort]
 profile = "black"
 line_length = 100
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
