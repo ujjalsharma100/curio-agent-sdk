@@ -33,30 +33,14 @@ class ContextManager:
         strategy: Literal["truncate_oldest", "summarize", "sliding_window"] = "truncate_oldest",
         reserve_tokens: int = 1000,
     ):
-        """
-        Args:
-            max_tokens: Maximum context window size (input + output).
-            strategy: How to fit messages when over budget:
-                - "truncate_oldest": Drop oldest messages (after system) until within budget.
-                - "sliding_window": Same as truncate_oldest; keep most recent messages that fit.
-                - "summarize": Replace truncated span with a single placeholder message
-                  (optional summarizer callable can be added later for real summarization).
-            reserve_tokens: Tokens to reserve for the model's response (default 1000).
-        """
         self.max_tokens = max_tokens
         self.strategy = strategy
         self.reserve_tokens = reserve_tokens
         self._budget = max(0, max_tokens - reserve_tokens)
 
     def count_tokens(self, messages: list[Message], model: str, tools: list | None = None) -> int:
-        """
-        Count tokens for a message list (and optional tool definitions) for the given model.
-
-        Uses tiktoken for OpenAI/Groq, Anthropic's counting API for Anthropic,
-        and approximate counting for other providers.
-        """
-        total = count_tokens_impl(messages, model, tools)
-        return total
+        """Count tokens for a message list (and optional tool definitions) for the given model."""
+        return count_tokens_impl(messages, model, tools)
 
     def fit_messages(
         self,
@@ -67,15 +51,13 @@ class ContextManager:
         """
         Trim or summarize messages to fit within the token budget.
 
-        Budget is max_tokens - reserve_tokens. When strategy is "truncate_oldest"
-        or "sliding_window", oldest messages (after any system message) are dropped
-        until the sequence fits. When strategy is "summarize", the dropped span is
-        replaced by a single placeholder message (or a future summarizer callback).
+        Budget is max_tokens - reserve_tokens. Only the first system message
+        is preserved at the start; all others are part of the trimmable history.
 
         Args:
             messages: Full message history (system, user, assistant, tool).
             tools: Optional tool schemas (their token cost is included when counting).
-            model: Model identifier for token counting (e.g. "openai:gpt-4o", "claude-sonnet-4-6").
+            model: Model identifier for token counting.
 
         Returns:
             A new list of messages that fits within the budget.
@@ -87,60 +69,84 @@ class ContextManager:
         if current <= self._budget:
             return list(messages)
 
-        # Split system prefix from the rest (keep system at the start)
-        system_messages: list[Message] = []
+        # Only preserve the first system message (standard convention)
+        system_msg: Message | None = None
         rest: list[Message] = []
         for m in messages:
-            if getattr(m, "role", None) == "system":
-                system_messages.append(m)
+            if system_msg is None and getattr(m, "role", None) == "system":
+                system_msg = m
             else:
                 rest.append(m)
 
         if not rest:
             return list(messages)
 
+        system_prefix = [system_msg] if system_msg else []
+
         if self.strategy in ("truncate_oldest", "sliding_window"):
-            return self._fit_truncate_oldest(system_messages, rest, tools, model)
+            return self._fit_truncate_oldest(system_prefix, rest, tools, model)
         if self.strategy == "summarize":
-            return self._fit_summarize(system_messages, rest, tools, model)
+            return self._fit_summarize(system_prefix, rest, tools, model)
         return list(messages)
 
     def _fit_truncate_oldest(
         self,
-        system_messages: list[Message],
+        system_prefix: list[Message],
         rest: list[Message],
         tools: list | None,
         model: str,
     ) -> list[Message]:
-        """Drop oldest non-system messages until within budget."""
-        out = list(system_messages)
-        # Add from the end (most recent) until we would exceed budget
-        for i in range(len(rest) - 1, -1, -1):
-            candidate = [*system_messages, *rest[i:]]
-            if count_tokens_impl(candidate, model, tools) <= self._budget:
-                out = [*system_messages, *rest[i:]]
-                break
-        else:
-            # Even a single latest message is over budget; keep it anyway
-            out = [*system_messages, rest[-1]] if rest else out
-        return out
+        """Drop oldest non-system messages until within budget using binary search."""
+        n = len(rest)
+
+        # Count system prefix tokens once
+        system_tokens = count_tokens_impl(system_prefix, model, tools) if system_prefix else 0
+
+        # Binary search for the earliest start index where messages fit
+        # We want the smallest i such that system_prefix + rest[i:] fits in budget
+        lo, hi = 0, n - 1
+        best_start = n - 1  # fallback: keep only the last message
+
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            candidate = [*system_prefix, *rest[mid:]]
+            token_count = count_tokens_impl(candidate, model, tools)
+            if token_count <= self._budget:
+                best_start = mid
+                hi = mid - 1  # try to include more messages
+            else:
+                lo = mid + 1  # need to drop more
+
+        return [*system_prefix, *rest[best_start:]]
 
     def _fit_summarize(
         self,
-        system_messages: list[Message],
+        system_prefix: list[Message],
         rest: list[Message],
         tools: list | None,
         model: str,
     ) -> list[Message]:
         """Replace a truncated prefix with a single placeholder message."""
-        out = list(system_messages)
-        # Find how many trailing messages fit
-        for i in range(len(rest) - 1, -1, -1):
-            placeholder = Message.system(SUMMARIZE_PLACEHOLDER)
-            candidate = [*system_messages, placeholder, *rest[i:]]
-            if count_tokens_impl(candidate, model, tools) <= self._budget:
-                out = [*system_messages, placeholder, *rest[i:]]
-                break
-        else:
-            out = [*system_messages, rest[-1]] if rest else out
-        return out
+        n = len(rest)
+        placeholder = Message.system(SUMMARIZE_PLACEHOLDER)
+
+        # Binary search for earliest start index with placeholder
+        lo, hi = 0, n - 1
+        best_start = n - 1
+
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            candidate = [*system_prefix, placeholder, *rest[mid:]]
+            token_count = count_tokens_impl(candidate, model, tools)
+            if token_count <= self._budget:
+                best_start = mid
+                hi = mid - 1
+            else:
+                lo = mid + 1
+
+        if best_start == 0:
+            # Everything fits with placeholder, but we already checked without it
+            # so just return with placeholder
+            return [*system_prefix, placeholder, *rest]
+
+        return [*system_prefix, placeholder, *rest[best_start:]]

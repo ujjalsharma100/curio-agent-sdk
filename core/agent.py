@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime
 from typing import Any, AsyncIterator, Callable
 
+from curio_agent_sdk.core.context import ContextManager
 from curio_agent_sdk.core.loops.base import AgentLoop
 from curio_agent_sdk.core.loops.tool_calling import ToolCallingLoop
 from curio_agent_sdk.core.state import AgentState
@@ -33,6 +34,9 @@ class Agent:
     - Tools that the agent can use
     - An LLM client for making model calls
     - A system prompt defining the agent's persona
+    - Optional middleware pipeline for observability and control
+    - Optional context manager for token budget management
+    - Optional human-in-the-loop handler for tool confirmation
 
     Simple usage:
         agent = Agent(
@@ -43,6 +47,8 @@ class Agent:
         result = agent.run("What is the weather in SF?")
 
     Full configuration:
+        from curio_agent_sdk.middleware import LoggingMiddleware, CostTracker
+
         agent = Agent(
             loop=ToolCallingLoop(tier="tier3"),
             llm=LLMClient(router=my_router),
@@ -51,6 +57,9 @@ class Agent:
             agent_id="research-agent",
             max_iterations=25,
             timeout=300,
+            iteration_timeout=60,
+            context_manager=ContextManager(max_tokens=128000),
+            middleware=[LoggingMiddleware(), CostTracker(budget=1.0)],
         )
         result = await agent.arun("Research quantum computing advances")
     """
@@ -74,8 +83,18 @@ class Agent:
         # Limits
         max_iterations: int = 25,
         timeout: float | None = None,  # Total run timeout in seconds
+        iteration_timeout: float | None = None,  # Per-step timeout in seconds
         max_tokens: int = 4096,
         temperature: float = 0.7,
+
+        # Context management
+        context_manager: ContextManager | None = None,
+
+        # Middleware
+        middleware: list | None = None,  # list[Middleware]
+
+        # Human-in-the-loop
+        human_input: Any | None = None,  # HumanInputHandler
 
         # Callbacks
         on_event: Callable[[AgentEvent], None] | None = None,
@@ -85,15 +104,19 @@ class Agent:
         self.agent_name = agent_name
         self.max_iterations = max_iterations
         self.timeout = timeout
+        self.iteration_timeout = iteration_timeout
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.on_event = on_event
+        self.context_manager = context_manager
+        self.middleware = middleware or []
+        self.human_input = human_input
 
         # Set up tools
         self.registry = ToolRegistry()
         for t in (tools or []):
             self.registry.register(t)
-        self.executor = ToolExecutor(self.registry)
+        self.executor = ToolExecutor(self.registry, human_input=human_input)
 
         # Set up LLM client
         if llm:
@@ -114,21 +137,31 @@ class Agent:
         else:
             self.llm = LLMClient()
 
+        # Wrap LLM client with middleware if provided
+        if self.middleware:
+            from curio_agent_sdk.middleware.base import MiddlewarePipeline
+            self._middleware_pipeline = MiddlewarePipeline(self.middleware)
+            self.llm = self._middleware_pipeline.wrap_llm_client(self.llm)
+        else:
+            self._middleware_pipeline = None
+
         # Set up loop
         if loop:
             self.loop = loop
         else:
             self.loop = ToolCallingLoop(tier=tier, temperature=temperature, max_tokens=max_tokens)
 
-        # Wire up the loop with LLM and executor
+        # Wire up the loop with LLM, executor, and context manager
         self._wire_loop()
 
     def _wire_loop(self):
-        """Inject LLM client and tool executor into the loop."""
+        """Inject LLM client, tool executor, and context manager into the loop."""
         if hasattr(self.loop, 'llm') and self.loop.llm is None:
             self.loop.llm = self.llm
         if hasattr(self.loop, 'tool_executor') and self.loop.tool_executor is None:
             self.loop.tool_executor = self.executor
+        if self.context_manager is not None:
+            self.loop.context_manager = self.context_manager
 
     def _create_state(self, input_text: str, context: dict[str, Any] | None = None) -> AgentState:
         """Create initial agent state for a run."""
@@ -207,7 +240,8 @@ class Agent:
                 state = await self._execute_loop(state, run_id)
 
         except asyncio.TimeoutError:
-            self._emit(EventType.RUN_TIMEOUT, run_id, state.iteration)
+            self._emit(EventType.RUN_TIMEOUT, run_id, state.iteration,
+                       elapsed=state.elapsed_time)
             return AgentRunResult(
                 status="timeout",
                 output="",
@@ -222,7 +256,8 @@ class Agent:
             )
 
         except asyncio.CancelledError:
-            self._emit(EventType.RUN_CANCELLED, run_id, state.iteration)
+            self._emit(EventType.RUN_CANCELLED, run_id, state.iteration,
+                       elapsed=state.elapsed_time)
             return AgentRunResult(
                 status="cancelled",
                 output="",
@@ -272,14 +307,27 @@ class Agent:
         )
 
     async def _execute_loop(self, state: AgentState, run_id: str) -> AgentState:
-        """Execute the agent loop until done."""
+        """Execute the agent loop until done, with optional per-iteration timeout."""
         while True:
             if state.is_cancelled:
                 break
 
             self._emit(EventType.ITERATION_STARTED, run_id, state.iteration + 1)
 
-            state = await self.loop.step(state)
+            if self.iteration_timeout:
+                try:
+                    state = await asyncio.wait_for(
+                        self.loop.step(state),
+                        timeout=self.iteration_timeout,
+                    )
+                except asyncio.TimeoutError:
+                    self._emit(
+                        EventType.ITERATION_COMPLETED, run_id, state.iteration,
+                        timeout=True, elapsed=state.elapsed_time,
+                    )
+                    raise
+            else:
+                state = await self.loop.step(state)
 
             self._emit(EventType.ITERATION_COMPLETED, run_id, state.iteration)
 

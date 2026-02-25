@@ -25,7 +25,7 @@ Quick start:
 # Core
 from curio_agent_sdk.core.agent import Agent
 from curio_agent_sdk.core.state import AgentState
-from curio_agent_sdk.core.tools.tool import Tool, tool
+from curio_agent_sdk.core.tools.tool import Tool, tool, ToolConfig
 from curio_agent_sdk.core.tools.schema import ToolSchema, ToolParameter
 from curio_agent_sdk.core.tools.registry import ToolRegistry
 from curio_agent_sdk.core.tools.executor import ToolExecutor, ToolResult
@@ -50,6 +50,16 @@ from curio_agent_sdk.config.settings import AgentConfig, DatabaseConfig
 
 # Persistence
 from curio_agent_sdk.persistence.base import BasePersistence
+
+# Middleware
+from curio_agent_sdk.middleware.base import Middleware, MiddlewarePipeline
+from curio_agent_sdk.middleware.logging_mw import LoggingMiddleware
+from curio_agent_sdk.middleware.cost_tracker import CostTracker
+from curio_agent_sdk.middleware.retry import RetryMiddleware
+from curio_agent_sdk.middleware.rate_limit import RateLimitMiddleware
+
+# Human-in-the-loop
+from curio_agent_sdk.core.human_input import HumanInputHandler, CLIHumanInput
 
 # Exceptions
 from curio_agent_sdk.exceptions import (
@@ -78,6 +88,7 @@ __all__ = [
     "AgentState",
     "Tool",
     "tool",
+    "ToolConfig",
     "ToolSchema",
     "ToolParameter",
     "ToolRegistry",
@@ -108,6 +119,16 @@ __all__ = [
     "DatabaseConfig",
     # Persistence
     "BasePersistence",
+    # Middleware
+    "Middleware",
+    "MiddlewarePipeline",
+    "LoggingMiddleware",
+    "CostTracker",
+    "RetryMiddleware",
+    "RateLimitMiddleware",
+    # Human-in-the-loop
+    "HumanInputHandler",
+    "CLIHumanInput",
     # Exceptions
     "CurioError",
     "LLMError",

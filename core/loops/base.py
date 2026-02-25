@@ -10,10 +10,13 @@ Different loop patterns implement different agent architectures:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import AsyncIterator
+from typing import AsyncIterator, TYPE_CHECKING
 
 from curio_agent_sdk.core.state import AgentState
 from curio_agent_sdk.models.events import StreamEvent
+
+if TYPE_CHECKING:
+    from curio_agent_sdk.core.context import ContextManager
 
 
 class AgentLoop(ABC):
@@ -29,6 +32,10 @@ class AgentLoop(ABC):
     The Agent class drives the loop by calling step() repeatedly
     until should_continue() returns False or limits are reached.
     """
+
+    # Optional context manager for fitting messages within token budgets.
+    # Set by Agent when a ContextManager is provided.
+    context_manager: ContextManager | None = None
 
     @abstractmethod
     async def step(self, state: AgentState) -> AgentState:

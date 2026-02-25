@@ -37,6 +37,9 @@ class AgentState:
     total_input_tokens: int = 0
     total_output_tokens: int = 0
 
+    # Timing
+    start_time: float = field(default_factory=lambda: __import__('time').monotonic())
+
     # Control
     _cancel_event: asyncio.Event = field(default_factory=asyncio.Event)
     _done: bool = False
@@ -75,6 +78,12 @@ class AgentState:
     def record_tool_calls(self, count: int = 1):
         """Record tool call(s) in the metrics."""
         self.total_tool_calls += count
+
+    @property
+    def elapsed_time(self) -> float:
+        """Elapsed time in seconds since the state was created."""
+        import time
+        return time.monotonic() - self.start_time
 
     @property
     def last_message(self) -> Message | None:

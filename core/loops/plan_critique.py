@@ -93,6 +93,12 @@ class PlanCritiqueSynthesizeLoop(AgentLoop):
         self.agent_id = agent_id
         self._critique_status = "continue"
 
+    def _fit_messages(self, messages: list[Message]) -> list[Message]:
+        """Apply context window management if a context_manager is set."""
+        if self.context_manager is not None:
+            return self.context_manager.fit_messages(messages)
+        return messages
+
     async def step(self, state: AgentState) -> AgentState:
         """One iteration: plan -> execute -> critique."""
         if not self.llm:
@@ -107,6 +113,9 @@ class PlanCritiqueSynthesizeLoop(AgentLoop):
         tool_desc = self._format_tools(state)
         if tool_desc:
             plan_messages.insert(-1, Message.user(f"Available tools:\n{tool_desc}"))
+
+        # Fit messages within context window
+        plan_messages = self._fit_messages(plan_messages)
 
         plan_request = LLMRequest(
             messages=plan_messages,
@@ -154,6 +163,9 @@ class PlanCritiqueSynthesizeLoop(AgentLoop):
         critique_messages = list(state.messages) + [
             Message.user(CRITIQUE_INSTRUCTIONS)
         ]
+
+        # Fit messages within context window
+        critique_messages = self._fit_messages(critique_messages)
 
         critique_request = LLMRequest(
             messages=critique_messages,
@@ -203,6 +215,9 @@ class PlanCritiqueSynthesizeLoop(AgentLoop):
         synthesis_messages = list(state.messages) + [
             Message.user(SYNTHESIS_INSTRUCTIONS)
         ]
+
+        # Fit messages within context window
+        synthesis_messages = self._fit_messages(synthesis_messages)
 
         synthesis_request = LLMRequest(
             messages=synthesis_messages,

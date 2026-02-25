@@ -22,6 +22,8 @@ class ToolConfig:
     max_retries: int = 0
     retry_backoff: float = 1.0
     require_confirmation: bool = False
+    cache_ttl: float | None = None  # TTL in seconds for caching results; None = no caching
+    sandboxed: bool = False  # Flag for sandboxed execution (actual sandboxing deferred)
 
 
 class Tool:

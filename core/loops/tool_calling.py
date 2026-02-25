@@ -46,6 +46,7 @@ class ToolCallingLoop(AgentLoop):
         max_tokens: int = 4096,
         run_id: str | None = None,
         agent_id: str | None = None,
+        parallel_tool_calls: bool = True,
     ):
         self.llm = llm
         self.tool_executor = tool_executor
@@ -54,6 +55,13 @@ class ToolCallingLoop(AgentLoop):
         self.max_tokens = max_tokens
         self.run_id = run_id
         self.agent_id = agent_id
+        self.parallel_tool_calls = parallel_tool_calls
+
+    def _fit_messages(self, messages: list[Message], tools: list | None) -> list[Message]:
+        """Apply context window management if a context_manager is set."""
+        if self.context_manager is not None:
+            return self.context_manager.fit_messages(messages, tools=tools)
+        return messages
 
     async def step(self, state: AgentState) -> AgentState:
         """
@@ -62,9 +70,15 @@ class ToolCallingLoop(AgentLoop):
         if not self.llm:
             raise RuntimeError("LLMClient not set on ToolCallingLoop")
 
+        # Fit messages within context window before building request
+        fitted_messages = self._fit_messages(
+            state.messages,
+            tools=state.tool_schemas if state.tools else None,
+        )
+
         # Build request
         request = LLMRequest(
-            messages=state.messages,
+            messages=fitted_messages,
             tools=state.tool_schemas if state.tools else None,
             tool_choice="auto" if state.tool_schemas else None,
             max_tokens=self.max_tokens,
@@ -87,7 +101,12 @@ class ToolCallingLoop(AgentLoop):
             logger.info(f"Executing {len(response.tool_calls)} tool call(s): "
                        f"{[tc.name for tc in response.tool_calls]}")
 
-            result_messages = await self.tool_executor.execute_to_messages(response.tool_calls)
+            if self.parallel_tool_calls and len(response.tool_calls) > 1:
+                result_messages = await self.tool_executor.execute_parallel_to_messages(
+                    response.tool_calls
+                )
+            else:
+                result_messages = await self.tool_executor.execute_to_messages(response.tool_calls)
             state.add_messages(result_messages)
 
         state.iteration += 1
@@ -116,8 +135,14 @@ class ToolCallingLoop(AgentLoop):
         if not self.llm:
             raise RuntimeError("LLMClient not set on ToolCallingLoop")
 
+        # Fit messages within context window
+        fitted_messages = self._fit_messages(
+            state.messages,
+            tools=state.tool_schemas if state.tools else None,
+        )
+
         request = LLMRequest(
-            messages=state.messages,
+            messages=fitted_messages,
             tools=state.tool_schemas if state.tools else None,
             tool_choice="auto" if state.tool_schemas else None,
             max_tokens=self.max_tokens,
