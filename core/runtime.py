@@ -46,6 +46,8 @@ if TYPE_CHECKING:
     from curio_agent_sdk.llm.client import LLMClient
     from curio_agent_sdk.core.skills import SkillRegistry
 
+from curio_agent_sdk.core.session import SessionManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -184,6 +186,9 @@ class Runtime:
         # Plan mode & todos (optional)
         plan_mode: Any = None,
         todo_manager: Any = None,
+
+        # Session / conversation management (optional)
+        session_manager: SessionManager | None = None,
     ):
         self.loop = loop
         self.llm = llm
@@ -201,6 +206,7 @@ class Runtime:
         self.skill_registry = skill_registry
         self.plan_mode = plan_mode
         self.todo_manager = todo_manager
+        self.session_manager = session_manager
 
         # Hook registry: primary lifecycle mechanism; event emission goes through it
         self.hook_registry = hook_registry if hook_registry is not None else HookRegistry()
@@ -363,12 +369,14 @@ class Runtime:
         output: str,
         run_id: str = "",
         agent_id: str = "",
+        *,
+        namespace_override: str | None = None,
     ) -> None:
         """
         Save the interaction to memory after a successful run.
 
         Delegates to MemoryManager.on_run_end() which uses the configured
-        save strategy. Emits memory.save.before hook.
+        save strategy. Use namespace_override for session-scoped memory (e.g. session_id).
         """
         if self.memory_manager is None:
             return
@@ -382,7 +390,9 @@ class Runtime:
         await self.hook_registry.emit(MEMORY_SAVE_BEFORE, ctx)
         if ctx.cancelled:
             return
-        await self.memory_manager.on_run_end(input_text, output, state)
+        await self.memory_manager.on_run_end(
+            input_text, output, state, namespace_override=namespace_override
+        )
 
     async def _memory_on_run_start(self, input_text: str, state: AgentState) -> None:
         """Notify memory manager of run start."""
@@ -498,19 +508,22 @@ class Runtime:
         resume_from: str | None = None,
         active_skills: list[str] | None = None,
         response_format: type | dict[str, Any] | None = None,
+        session_id: str | None = None,
+        session_manager: SessionManager | None = None,
     ) -> AgentRunResult:
         """
         Run the agent loop to completion.
 
         This is the main execution method. It:
-        1. Creates or restores state
+        1. Creates or restores state (or loads from session when session_id is set)
         2. Injects memory context (via MemoryManager)
         3. Notifies memory of run start
         4. Drives the loop until done, timeout, cancel, or error
         5. Notifies memory per-iteration
         6. Extracts output
-        7. Saves to memory (via MemoryManager)
-        8. Returns the result
+        7. Saves to memory (via MemoryManager), optionally session-scoped when session_id is set
+        8. Persists new messages to session when session_id and session_manager are set
+        9. Returns the result
 
         Args:
             input: The user's input/objective.
@@ -520,22 +533,49 @@ class Runtime:
             max_iterations: Override max iterations for this run.
             timeout: Override timeout for this run (seconds).
             resume_from: Optional run_id to resume from saved state.
+            session_id: Optional session ID for multi-turn conversation; loads history and persists new messages.
+            session_manager: Optional session manager (uses self.session_manager if not provided).
 
         Returns:
             AgentRunResult with status, output, and metrics.
         """
         run_id = resume_from or str(uuid.uuid4())
         effective_timeout = timeout or self.timeout
+        session_mgr = session_manager or self.session_manager
+        memory_namespace = session_id  # For session-scoped memory save
 
         await self._ensure_components_started()
 
         # Try to resume from saved state
         state = None
+        num_session_messages: int | None = None  # Set when we load from session; used when persisting after run
+
         if resume_from:
             state = await self.restore_state(resume_from, agent_id)
 
-        # Create fresh state if not resuming
-        if state is None:
+        # Create state from session when session_id and session_manager are set
+        if state is None and session_id and session_mgr:
+            session_messages = await session_mgr.get_messages(session_id, limit=200)
+            num_session_messages = len(session_messages)
+            prompt = self.system_prompt
+            if self.extra_instructions:
+                prompt = f"{prompt}\n\n---\n\n" + "\n\n".join(self.extra_instructions)
+            system_msg = Message.system(prompt)
+            if context:
+                import json
+                input_with_context = f"{input}\n\nAdditional context:\n{json.dumps(context, indent=2)}"
+                user_msg = Message.user(input_with_context)
+            else:
+                user_msg = Message.user(input)
+            messages = [system_msg] + list(session_messages) + [user_msg]
+            state = AgentState(
+                messages=messages,
+                tools=self.tool_registry.tools,
+                tool_schemas=self.tool_registry.get_llm_schemas(),
+                max_iterations=self.max_iterations,
+            )
+            await self.inject_memory_context(state, input, run_id=run_id, agent_id=agent_id)
+        elif state is None:
             state = self.create_state(input, context)
             await self.inject_memory_context(state, input, run_id=run_id, agent_id=agent_id)
 
@@ -672,8 +712,21 @@ class Runtime:
             except Exception as e:
                 logger.debug("Structured output parse failed (output left as raw text): %s", e)
 
-        # Save to memory via MemoryManager
-        await self.save_to_memory(state, input, output, run_id=run_id, agent_id=agent_id)
+        # Save to memory via MemoryManager (session-scoped when session_id is set)
+        await self.save_to_memory(
+            state, input, output,
+            run_id=run_id, agent_id=agent_id,
+            namespace_override=memory_namespace,
+        )
+
+        # Persist new messages to session when we built state from session
+        if session_id and session_mgr and num_session_messages is not None:
+            new_messages = state.messages[num_session_messages + 1:]
+            for msg in new_messages:
+                try:
+                    await session_mgr.add_message(session_id, msg)
+                except Exception as e:
+                    logger.warning("Failed to persist message to session %s: %s", session_id, e)
 
         await self._emit_hook(
             AGENT_RUN_AFTER,

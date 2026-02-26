@@ -147,6 +147,9 @@ class Agent:
         plan_mode: Any | None = None,
         todo_manager: Any | None = None,
         read_only_tool_names: list[str] | None = None,
+
+        # Session / conversation management (optional)
+        session_manager: Any | None = None,
     ):
         # ── Resolve instructions (direct construction) ─────────────────
         base_prompt = system_prompt
@@ -317,7 +320,9 @@ class Agent:
             skill_registry=self.skill_registry,
             plan_mode=getattr(self, "plan_mode", None),
             todo_manager=getattr(self, "todo_manager", None),
+            session_manager=session_manager,
         )
+        self.session_manager = session_manager
 
         # Expose the resolved memory_manager from runtime
         if self.runtime.memory_manager is not None:
@@ -353,6 +358,7 @@ class Agent:
         resume_from: str | None = None,
         active_skills: list[str] | None = None,
         response_format: type | dict[str, Any] | None = None,
+        session_id: str | None = None,
     ) -> AgentRunResult:
         """
         Run the agent asynchronously.
@@ -365,6 +371,8 @@ class Agent:
             resume_from: Optional run_id to resume from saved state.
             response_format: Optional Pydantic model or list[Model] for structured
                 output; result.parsed_output will hold the validated instance(s).
+            session_id: Optional session ID for multi-turn conversation; loads history
+                and persists new messages (requires session_manager on the agent).
 
         Returns:
             AgentRunResult with status, output, and metrics (and parsed_output if response_format used).
@@ -379,6 +387,8 @@ class Agent:
             resume_from=resume_from,
             active_skills=active_skills,
             response_format=response_format,
+            session_id=session_id,
+            session_manager=self.session_manager,
         )
 
     async def invoke_skill(
@@ -510,6 +520,7 @@ class Agent:
         resume_from: str | None = None,
         active_skills: list[str] | None = None,
         response_format: type | dict[str, Any] | None = None,
+        session_id: str | None = None,
     ) -> AgentRunResult:
         """
         Run the agent synchronously. Convenience wrapper around arun().
@@ -521,6 +532,7 @@ class Agent:
             timeout: Override timeout (seconds).
             resume_from: Optional run_id to resume from saved state.
             response_format: Optional Pydantic model or list[Model] for structured output.
+            session_id: Optional session ID for multi-turn conversation.
 
         Returns:
             AgentRunResult with status, output, and metrics.
@@ -539,6 +551,7 @@ class Agent:
                         resume_from=resume_from,
                         active_skills=active_skills,
                         response_format=response_format,
+                        session_id=session_id,
                     ),
                 )
                 return future.result()
@@ -552,6 +565,7 @@ class Agent:
                     resume_from=resume_from,
                     active_skills=active_skills,
                     response_format=response_format,
+                    session_id=session_id,
                 )
             )
 

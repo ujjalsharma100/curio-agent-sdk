@@ -214,6 +214,23 @@ class AgentBuilder:
         self._config["state_store"] = store
         return self
 
+    def session_manager(self, manager: Any) -> AgentBuilder:
+        """
+        Set the session manager for multi-turn conversation sessions.
+
+        Example:
+            from curio_agent_sdk.core.session import SessionManager, InMemorySessionStore
+            store = InMemorySessionStore()
+            agent = Agent.builder() \\
+                .session_manager(SessionManager(store)) \\
+                .model("openai:gpt-4o") \\
+                .build()
+            session = await agent.session_manager.create(agent.agent_id)
+            result = await agent.arun("Hello", session_id=session.id)
+        """
+        self._config["session_manager"] = manager
+        return self
+
     def checkpoint_interval(self, n: int) -> AgentBuilder:
         """Set how often to save state (every N iterations)."""
         self._config["checkpoint_interval"] = n

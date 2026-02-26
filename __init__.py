@@ -137,6 +137,12 @@ from curio_agent_sdk.core.plan_mode import (
     PlanMode,
     get_plan_mode_tools,
 )
+from curio_agent_sdk.core.session import (
+    Session,
+    SessionManager,
+    SessionStore,
+    InMemorySessionStore,
+)
 
 __version__ = "0.6.0"
 
@@ -252,6 +258,11 @@ __all__ = [
     "TodoManager",
     "PlanMode",
     "get_plan_mode_tools",
+    # Session / conversation management
+    "Session",
+    "SessionManager",
+    "SessionStore",
+    "InMemorySessionStore",
     # Structured output
     "response_format_to_schema",
     "parse_structured_output",

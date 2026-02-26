@@ -33,6 +33,12 @@ from curio_agent_sdk.core.structured_output import (
     response_format_to_schema,
     parse_structured_output,
 )
+from curio_agent_sdk.core.session import (
+    Session,
+    SessionManager,
+    SessionStore,
+    InMemorySessionStore,
+)
 
 __all__ = [
     "Agent",
@@ -66,4 +72,8 @@ __all__ = [
     "get_plan_mode_tools",
     "response_format_to_schema",
     "parse_structured_output",
+    "Session",
+    "SessionManager",
+    "SessionStore",
+    "InMemorySessionStore",
 ]

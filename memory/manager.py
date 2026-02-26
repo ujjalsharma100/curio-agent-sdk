@@ -88,9 +88,15 @@ class MemorySaveStrategy(ABC):
         pass
 
     async def on_run_end(
-        self, memory: Memory, input_text: str, output: str, state: AgentState
+        self,
+        memory: Memory,
+        input_text: str,
+        output: str,
+        state: AgentState,
+        *,
+        namespace: str | None = None,
     ) -> None:
-        """Called at the end of a successful run."""
+        """Called at the end of a successful run. Optional namespace for session-scoped memory."""
         pass
 
     async def on_run_error(
@@ -239,17 +245,23 @@ class DefaultSave(MemorySaveStrategy):
     """
 
     async def on_run_end(
-        self, memory: Memory, input_text: str, output: str, state: AgentState
+        self,
+        memory: Memory,
+        input_text: str,
+        output: str,
+        state: AgentState,
+        *,
+        namespace: str | None = None,
     ) -> None:
-        await memory.add(
-            f"User: {input_text}",
-            metadata={"type": "user_input", "role": "user"},
-        )
+        meta_user: dict[str, Any] = {"type": "user_input", "role": "user"}
+        if namespace:
+            meta_user["namespace"] = namespace
+        await memory.add(f"User: {input_text}", metadata=meta_user)
         if output:
-            await memory.add(
-                f"Assistant: {output}",
-                metadata={"type": "assistant_output", "role": "assistant"},
-            )
+            meta_asst: dict[str, Any] = {"type": "assistant_output", "role": "assistant"}
+            if namespace:
+                meta_asst["namespace"] = namespace
+            await memory.add(f"Assistant: {output}", metadata=meta_asst)
 
 
 class SaveEverythingStrategy(MemorySaveStrategy):
@@ -259,17 +271,23 @@ class SaveEverythingStrategy(MemorySaveStrategy):
     """
 
     async def on_run_end(
-        self, memory: Memory, input_text: str, output: str, state: AgentState
+        self,
+        memory: Memory,
+        input_text: str,
+        output: str,
+        state: AgentState,
+        *,
+        namespace: str | None = None,
     ) -> None:
-        await memory.add(
-            f"User: {input_text}",
-            metadata={"type": "user_input", "role": "user"},
-        )
+        meta_user: dict[str, Any] = {"type": "user_input", "role": "user"}
+        if namespace:
+            meta_user["namespace"] = namespace
+        await memory.add(f"User: {input_text}", metadata=meta_user)
         if output:
-            await memory.add(
-                f"Assistant: {output}",
-                metadata={"type": "assistant_output", "role": "assistant"},
-            )
+            meta_asst: dict[str, Any] = {"type": "assistant_output", "role": "assistant"}
+            if namespace:
+                meta_asst["namespace"] = namespace
+            await memory.add(f"Assistant: {output}", metadata=meta_asst)
 
     async def on_tool_result(
         self, memory: Memory, tool_name: str, tool_args: dict, result: Any, state: AgentState
@@ -293,14 +311,20 @@ class SaveSummaryStrategy(MemorySaveStrategy):
         self._summarize_fn = summarize_fn
 
     async def on_run_end(
-        self, memory: Memory, input_text: str, output: str, state: AgentState
+        self,
+        memory: Memory,
+        input_text: str,
+        output: str,
+        state: AgentState,
+        *,
+        namespace: str | None = None,
     ) -> None:
         summary = await self._summarize_fn(input_text, output, state)
         if summary:
-            await memory.add(
-                summary,
-                metadata={"type": "interaction_summary"},
-            )
+            meta: dict[str, Any] = {"type": "interaction_summary"}
+            if namespace:
+                meta["namespace"] = namespace
+            await memory.add(summary, metadata=meta)
 
 
 class NoSave(MemorySaveStrategy):
@@ -315,17 +339,23 @@ class PerIterationSave(MemorySaveStrategy):
     """
 
     async def on_run_end(
-        self, memory: Memory, input_text: str, output: str, state: AgentState
+        self,
+        memory: Memory,
+        input_text: str,
+        output: str,
+        state: AgentState,
+        *,
+        namespace: str | None = None,
     ) -> None:
-        await memory.add(
-            f"User: {input_text}",
-            metadata={"type": "user_input", "role": "user"},
-        )
+        meta_user: dict[str, Any] = {"type": "user_input", "role": "user"}
+        if namespace:
+            meta_user["namespace"] = namespace
+        await memory.add(f"User: {input_text}", metadata=meta_user)
         if output:
-            await memory.add(
-                f"Assistant: {output}",
-                metadata={"type": "assistant_output", "role": "assistant"},
-            )
+            meta_asst: dict[str, Any] = {"type": "assistant_output", "role": "assistant"}
+            if namespace:
+                meta_asst["namespace"] = namespace
+            await memory.add(f"Assistant: {output}", metadata=meta_asst)
 
     async def on_iteration(self, memory: Memory, state: AgentState, iteration: int) -> None:
         last_msg = state.last_message
@@ -514,10 +544,23 @@ class MemoryManager(Component):
         except Exception as e:
             logger.warning("Failed memory on_run_start: %s", e)
 
-    async def on_run_end(self, input_text: str, output: str, state: AgentState) -> None:
-        """Called at the end of a successful run."""
+    async def on_run_end(
+        self,
+        input_text: str,
+        output: str,
+        state: AgentState,
+        *,
+        namespace_override: str | None = None,
+    ) -> None:
+        """Called at the end of a successful run. Use namespace_override for session-scoped memory."""
         try:
-            await self.save_strategy.on_run_end(self.memory, input_text, output, state)
+            await self.save_strategy.on_run_end(
+                self.memory,
+                input_text,
+                output,
+                state,
+                namespace=namespace_override or self.namespace,
+            )
         except Exception as e:
             logger.warning("Failed memory on_run_end: %s", e)
 
