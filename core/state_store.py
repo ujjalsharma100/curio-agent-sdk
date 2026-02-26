@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
+from curio_agent_sdk.core.component import Component
 from curio_agent_sdk.core.state import AgentState
 from curio_agent_sdk.core.checkpoint import Checkpoint, _serialize_message, _deserialize_message
 
@@ -48,7 +49,7 @@ class StateStore(ABC):
         ...
 
 
-class InMemoryStateStore(StateStore):
+class InMemoryStateStore(StateStore, Component):
     """
     In-memory state store for testing and development.
 
@@ -57,6 +58,15 @@ class InMemoryStateStore(StateStore):
 
     def __init__(self):
         self._states: dict[str, tuple[Checkpoint, list]] = {}  # run_id -> (checkpoint, tool_schemas)
+
+    async def startup(self) -> None:
+        pass
+
+    async def shutdown(self) -> None:
+        pass
+
+    async def health_check(self) -> bool:
+        return True
 
     async def save(self, state: AgentState, run_id: str, agent_id: str) -> None:
         checkpoint = Checkpoint.from_state(state, run_id=run_id, agent_id=agent_id)
@@ -93,7 +103,7 @@ class InMemoryStateStore(StateStore):
         return self._states.pop(run_id, None) is not None
 
 
-class FileStateStore(StateStore):
+class FileStateStore(StateStore, Component):
     """
     File-based state store.
 
@@ -108,6 +118,17 @@ class FileStateStore(StateStore):
     def __init__(self, directory: str | Path):
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
+
+    async def startup(self) -> None:
+        """Ensure directory exists."""
+        self.directory.mkdir(parents=True, exist_ok=True)
+
+    async def shutdown(self) -> None:
+        pass
+
+    async def health_check(self) -> bool:
+        """Return True if the directory exists and is writable."""
+        return self.directory.exists() and self.directory.is_dir()
 
     def _run_path(self, run_id: str) -> Path:
         safe_id = run_id.replace("/", "_").replace("\\", "_")

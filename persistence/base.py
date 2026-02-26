@@ -3,18 +3,22 @@ Abstract base class for persistence implementations.
 
 Supports both sync and async patterns. Sync implementations work out of
 the box. Async implementations can override the a* methods.
+
+Implements Component for lifecycle (startup = initialize_schema,
+shutdown = close, health_check).
 """
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Any
-import asyncio
 
+from curio_agent_sdk.core.component import Component
 from curio_agent_sdk.models.agent import AgentRun, AgentRunEvent, AgentLLMUsage
 
 
-class BasePersistence(ABC):
+class BasePersistence(ABC, Component):
     """
     Abstract base class for persistence backends.
 
@@ -89,7 +93,7 @@ class BasePersistence(ABC):
     def get_agent_run_stats(self, agent_id: str | None = None) -> dict[str, Any]:
         pass
 
-    # === Lifecycle ===
+    # === Lifecycle (sync; Component async methods wrap these) ===
 
     def initialize_schema(self) -> None:
         """Create tables if they don't exist."""
@@ -100,10 +104,21 @@ class BasePersistence(ABC):
         pass
 
     def health_check(self) -> bool:
-        """Check if the backend is healthy."""
+        """Check if the backend is healthy (sync). Subclasses may override."""
         return True
 
-    # === Async wrappers (run sync in thread by default) ===
+    # === Component lifecycle (async wrappers for Runtime) ===
+
+    async def startup(self) -> None:
+        """Initialize schema (async wrapper)."""
+        await asyncio.to_thread(self.initialize_schema)
+
+    async def shutdown(self) -> None:
+        """Close connections (async wrapper)."""
+        await asyncio.to_thread(self.close)
+
+    # health_check: use Component default (True). Sync health_check() above
+    # remains for backward compat (e.g. observability backend).
 
     async def acreate_agent_run(self, run: AgentRun) -> None:
         await asyncio.to_thread(self.create_agent_run, run)

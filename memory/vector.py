@@ -13,6 +13,7 @@ import logging
 import math
 from typing import Any, Callable, Awaitable
 
+from curio_agent_sdk.core.component import Component
 from curio_agent_sdk.memory.base import Memory, MemoryEntry
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ async def _default_embedding_fn(texts: list[str]) -> list[list[float]]:
     return [item.embedding for item in response.data]
 
 
-class VectorMemory(Memory):
+class VectorMemory(Memory, Component):
     """
     Long-term semantic memory using vector embeddings.
 
@@ -89,6 +90,20 @@ class VectorMemory(Memory):
         self._entries: list[MemoryEntry] = []
         self._vectors: list[list[float]] = []
         self._index: dict[str, int] = {}  # entry_id -> index
+
+    # ── Component lifecycle (for persistence: load/save index in Phase 3.4) ──
+
+    async def startup(self) -> None:
+        """Load index if persistence is configured (no-op for in-memory)."""
+        pass
+
+    async def shutdown(self) -> None:
+        """Save index if persistence is configured (no-op for in-memory)."""
+        pass
+
+    async def health_check(self) -> bool:
+        """Return True if the memory is ready to use."""
+        return True
 
     async def _embed(self, texts: list[str]) -> list[list[float]]:
         """Get embeddings for a list of texts."""

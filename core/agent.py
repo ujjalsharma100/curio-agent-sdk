@@ -320,6 +320,36 @@ class Agent:
         except RuntimeError:
             return asyncio.run(self.arun(input, context, max_iterations, timeout, resume_from))
 
+    # ── Component lifecycle ────────────────────────────────────────
+
+    async def start(self) -> None:
+        """
+        Start all components (memory, state store, etc.).
+
+        Idempotent; safe to call multiple times. Called automatically
+        before the first run()/arun()/astream() if not called explicitly.
+        """
+        await self.runtime.startup_components()
+        self.runtime._components_started = True
+
+    async def close(self) -> None:
+        """
+        Shut down all components (memory, state store, etc.).
+
+        Call when done with the agent to release resources. Safe to
+        call multiple times. Use `async with agent:` to close automatically.
+        """
+        await self.runtime.shutdown_components()
+
+    async def __aenter__(self) -> Agent:
+        """Start components when entering async with block."""
+        await self.start()
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Shut down components when exiting async with block."""
+        await self.close()
+
     # ── Convenience properties ──────────────────────────────────────
 
     @property

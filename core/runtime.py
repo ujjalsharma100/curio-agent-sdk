@@ -16,6 +16,7 @@ import uuid
 from datetime import datetime
 from typing import Any, AsyncIterator, Callable, TYPE_CHECKING
 
+from curio_agent_sdk.core.component import Component
 from curio_agent_sdk.core.context import ContextManager
 from curio_agent_sdk.core.loops.base import AgentLoop
 from curio_agent_sdk.core.state import AgentState
@@ -128,6 +129,67 @@ class Runtime:
         # Wire context manager into the loop
         if self.context_manager is not None:
             self.loop.context_manager = self.context_manager
+
+        # Component lifecycle: start once before first run, shutdown on close
+        self._components_started = False
+
+    # ── Component lifecycle ─────────────────────────────────────────
+
+    def _gather_components(self) -> list[Component]:
+        """Collect all dependencies that implement Component (unique by id)."""
+        candidates = [
+            self.memory_manager,
+            self.state_store,
+            self.llm,
+            self.loop,
+        ]
+        seen: set[int] = set()
+        out: list[Component] = []
+        for obj in candidates:
+            if obj is not None and isinstance(obj, Component):
+                oid = id(obj)
+                if oid not in seen:
+                    seen.add(oid)
+                    out.append(obj)
+        return out
+
+    async def startup_components(self) -> None:
+        """Start all components that support lifecycle. Idempotent after first call."""
+        for comp in self._gather_components():
+            try:
+                await comp.startup()
+                logger.debug("Started component %s", type(comp).__name__)
+            except Exception as e:
+                logger.warning("Component %s startup failed: %s", type(comp).__name__, e)
+
+    async def shutdown_components(self) -> None:
+        """Shut down all components. Safe to call multiple times."""
+        for comp in self._gather_components():
+            try:
+                await comp.shutdown()
+                logger.debug("Shut down component %s", type(comp).__name__)
+            except Exception as e:
+                logger.warning("Component %s shutdown failed: %s", type(comp).__name__, e)
+        self._components_started = False
+
+    async def _ensure_components_started(self) -> None:
+        """Ensure all components are started (called at start of run/stream)."""
+        if self._components_started:
+            return
+        await self.startup_components()
+        self._components_started = True
+
+    async def health_check_components(self) -> dict[str, bool]:
+        """Run health_check on all components. Returns name -> healthy."""
+        result: dict[str, bool] = {}
+        for comp in self._gather_components():
+            name = type(comp).__name__
+            try:
+                result[name] = await comp.health_check()
+            except Exception as e:
+                logger.warning("Health check %s failed: %s", name, e)
+                result[name] = False
+        return result
 
     # ── State creation ──────────────────────────────────────────────
 
@@ -290,6 +352,8 @@ class Runtime:
         run_id = resume_from or str(uuid.uuid4())
         effective_timeout = timeout or self.timeout
 
+        await self._ensure_components_started()
+
         # Try to resume from saved state
         state = None
         if resume_from:
@@ -422,6 +486,8 @@ class Runtime:
         """
         run_id = run_id or str(uuid.uuid4())
 
+        await self._ensure_components_started()
+
         if hasattr(self.loop, 'run_id'):
             self.loop.run_id = run_id
         if hasattr(self.loop, 'agent_id'):
@@ -492,6 +558,9 @@ class Runtime:
             StreamEvent objects.
         """
         run_id = str(uuid.uuid4())
+
+        await self._ensure_components_started()
+
         state = self.create_state(input, context)
         await self.inject_memory_context(state, input)
         await self._memory_on_run_start(input, state)

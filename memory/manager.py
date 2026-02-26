@@ -33,6 +33,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, TYPE_CHECKING
 
+from curio_agent_sdk.core.component import Component
 from curio_agent_sdk.memory.base import Memory, MemoryEntry
 from curio_agent_sdk.models.llm import Message
 
@@ -420,7 +421,7 @@ class AdaptiveTokenQuery(MemoryQueryStrategy):
 # MemoryManager
 # ════════════════════════════════════════════════════════════════════════
 
-class MemoryManager:
+class MemoryManager(Component):
     """
     Orchestrates how memory is used in the agent lifecycle.
 
@@ -470,6 +471,24 @@ class MemoryManager:
         self.save_strategy = save_strategy or DefaultSave()
         self.query_strategy = query_strategy or DefaultQuery()
         self.namespace = namespace
+
+    # ── Component lifecycle (delegate to memory backend if it supports it) ──
+
+    async def startup(self) -> None:
+        """Start the memory backend if it implements Component."""
+        if isinstance(self.memory, Component):
+            await self.memory.startup()
+
+    async def shutdown(self) -> None:
+        """Shut down the memory backend if it implements Component."""
+        if isinstance(self.memory, Component):
+            await self.memory.shutdown()
+
+    async def health_check(self) -> bool:
+        """Health check delegates to memory backend if it implements Component."""
+        if isinstance(self.memory, Component):
+            return await self.memory.health_check()
+        return True
 
     # ── Injection (called by Runtime before run) ────────────────────
 
