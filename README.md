@@ -6,7 +6,7 @@ A composable, async-first, provider-native agent harness for building production
 
 Curio Agent SDK provides everything you need to build autonomous agents:
 
-- **Composable agent loops** - ToolCallingLoop, PlanCritiqueSynthesizeLoop, or build your own
+- **Composable agent loops** - ToolCallingLoop (default) or build your own
 - **Async-first** - Full async/await with sync wrappers for convenience
 - **Native tool calling** - Provider-native function calling (OpenAI, Anthropic, Groq, Ollama)
 - **Message-based LLM interface** - Proper system/user/assistant/tool message roles
@@ -132,11 +132,9 @@ curio_agent_sdk/
 │   ├── checkpoint.py               # Checkpoint serialization
 │   ├── state_store.py              # StateStore & persistence
 │   ├── human_input.py              # Human-in-the-loop
-│   ├── object_identifier_map.py    # Context optimization
 │   ├── loops/
 │   │   ├── base.py                 # AgentLoop ABC
-│   │   ├── tool_calling.py         # Standard tool calling loop
-│   │   └── plan_critique.py        # Plan-critique-synthesize pattern
+│   │   └── tool_calling.py         # Standard tool calling loop
 │   └── tools/
 │       ├── tool.py                 # Tool class & @tool decorator
 │       ├── schema.py               # ToolSchema (JSON Schema generation)
@@ -192,13 +190,9 @@ curio_agent_sdk/
 The SDK provides composable loop patterns:
 
 ```python
-# Standard tool calling (most common)
+# Standard tool calling (default)
 from curio_agent_sdk import ToolCallingLoop
 agent = Agent(loop=ToolCallingLoop(), ...)
-
-# Plan-critique-synthesize (complex reasoning)
-from curio_agent_sdk import PlanCritiqueSynthesizeLoop
-agent = Agent(loop=PlanCritiqueSynthesizeLoop(), ...)
 
 # Custom loop
 from curio_agent_sdk import AgentLoop, AgentState

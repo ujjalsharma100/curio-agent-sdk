@@ -96,7 +96,7 @@ class AgentBuilder:
         return self
 
     def loop(self, loop: AgentLoop) -> AgentBuilder:
-        """Set a custom agent loop (ToolCallingLoop, PlanCritiqueSynthesizeLoop, or custom)."""
+        """Set a custom agent loop (ToolCallingLoop or custom AgentLoop implementation)."""
         self._config["loop"] = loop
         return self
 

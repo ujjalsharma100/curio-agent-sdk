@@ -43,7 +43,6 @@ from curio_agent_sdk.core.tools.executor import ToolExecutor, ToolResult
 # Loops
 from curio_agent_sdk.core.loops.base import AgentLoop
 from curio_agent_sdk.core.loops.tool_calling import ToolCallingLoop
-from curio_agent_sdk.core.loops.plan_critique import PlanCritiqueSynthesizeLoop
 
 # LLM
 from curio_agent_sdk.llm.client import LLMClient
@@ -118,8 +117,7 @@ from curio_agent_sdk.exceptions import (
     CostBudgetExceeded,
 )
 
-# Context optimization
-from curio_agent_sdk.core.object_identifier_map import ObjectIdentifierMap
+# Context
 from curio_agent_sdk.core.context import ContextManager
 from curio_agent_sdk.core.instructions import (
     InstructionLoader,
@@ -164,7 +162,6 @@ __all__ = [
     # Loops
     "AgentLoop",
     "ToolCallingLoop",
-    "PlanCritiqueSynthesizeLoop",
     # LLM
     "LLMClient",
     "TieredRouter",
@@ -267,6 +264,5 @@ __all__ = [
     "response_format_to_schema",
     "parse_structured_output",
     # Utilities
-    "ObjectIdentifierMap",
     "ContextManager",
 ]

@@ -2,8 +2,7 @@
 Base class for agent execution loops.
 
 Different loop patterns implement different agent architectures:
-- ToolCallingLoop: Standard LLM tool calling (most common)
-- PlanCritiqueSynthesizeLoop: Plan-execute-critique-synthesize
+- ToolCallingLoop: Standard LLM tool calling (default)
 - Custom loops: Any pattern you need
 """
 
