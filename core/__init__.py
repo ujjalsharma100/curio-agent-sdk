@@ -36,6 +36,11 @@ from curio_agent_sdk.core.session import (
     SessionStore,
     InMemorySessionStore,
 )
+from curio_agent_sdk.core.task_manager import (
+    TaskManager,
+    TaskStatus,
+    TaskInfo,
+)
 
 __all__ = [
     "Agent",
@@ -71,4 +76,7 @@ __all__ = [
     "SessionManager",
     "SessionStore",
     "InMemorySessionStore",
+    "TaskManager",
+    "TaskStatus",
+    "TaskInfo",
 ]

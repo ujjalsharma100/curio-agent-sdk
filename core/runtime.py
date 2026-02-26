@@ -532,6 +532,7 @@ class Runtime:
         response_format: type | dict[str, Any] | None = None,
         session_id: str | None = None,
         session_manager: SessionManager | None = None,
+        run_id: str | None = None,
     ) -> AgentRunResult:
         """
         Run the agent loop to completion.
@@ -557,11 +558,12 @@ class Runtime:
             resume_from: Optional run_id to resume from saved state.
             session_id: Optional session ID for multi-turn conversation; loads history and persists new messages.
             session_manager: Optional session manager (uses self.session_manager if not provided).
+            run_id: Optional explicit run ID (e.g. for TaskManager to use task_id as run_id for checkpoint correlation).
 
         Returns:
             AgentRunResult with status, output, and metrics.
         """
-        run_id = resume_from or str(uuid.uuid4())
+        run_id = run_id or resume_from or str(uuid.uuid4())
         effective_timeout = timeout or self.timeout
         session_mgr = session_manager or self.session_manager
         memory_namespace = session_id  # For session-scoped memory save

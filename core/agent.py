@@ -376,6 +376,7 @@ class Agent:
         active_skills: list[str] | None = None,
         response_format: type | dict[str, Any] | None = None,
         session_id: str | None = None,
+        run_id: str | None = None,
     ) -> AgentRunResult:
         """
         Run the agent asynchronously.
@@ -390,6 +391,7 @@ class Agent:
                 output; result.parsed_output will hold the validated instance(s).
             session_id: Optional session ID for multi-turn conversation; loads history
                 and persists new messages (requires session_manager on the agent).
+            run_id: Optional explicit run ID (e.g. for TaskManager to use task_id for checkpoint correlation).
 
         Returns:
             AgentRunResult with status, output, and metrics (and parsed_output if response_format used).
@@ -406,6 +408,7 @@ class Agent:
             response_format=response_format,
             session_id=session_id,
             session_manager=self.session_manager,
+            run_id=run_id,
         )
 
     async def invoke_skill(

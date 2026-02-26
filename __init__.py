@@ -141,6 +141,11 @@ from curio_agent_sdk.core.session import (
     SessionStore,
     InMemorySessionStore,
 )
+from curio_agent_sdk.core.task_manager import (
+    TaskManager,
+    TaskStatus,
+    TaskInfo,
+)
 from curio_agent_sdk.mcp import (
     MCPClient,
     MCPToolAdapter,
@@ -268,6 +273,10 @@ __all__ = [
     "SessionManager",
     "SessionStore",
     "InMemorySessionStore",
+    # Long-running task management
+    "TaskManager",
+    "TaskStatus",
+    "TaskInfo",
     # MCP (Model Context Protocol)
     "MCPClient",
     "MCPToolAdapter",
