@@ -57,6 +57,8 @@ from curio_agent_sdk.middleware.logging_mw import LoggingMiddleware
 from curio_agent_sdk.middleware.cost_tracker import CostTracker
 from curio_agent_sdk.middleware.retry import RetryMiddleware
 from curio_agent_sdk.middleware.rate_limit import RateLimitMiddleware
+from curio_agent_sdk.middleware.tracing import TracingMiddleware
+from curio_agent_sdk.middleware.guardrails import GuardrailsMiddleware, GuardrailsError
 
 # Human-in-the-loop
 from curio_agent_sdk.core.human_input import HumanInputHandler, CLIHumanInput
@@ -95,7 +97,7 @@ from curio_agent_sdk.exceptions import (
 from curio_agent_sdk.core.object_identifier_map import ObjectIdentifierMap
 from curio_agent_sdk.core.context import ContextManager
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     # Core
@@ -141,6 +143,9 @@ __all__ = [
     "CostTracker",
     "RetryMiddleware",
     "RateLimitMiddleware",
+    "TracingMiddleware",
+    "GuardrailsMiddleware",
+    "GuardrailsError",
     # Human-in-the-loop
     "HumanInputHandler",
     "CLIHumanInput",
