@@ -150,6 +150,11 @@ class Agent:
 
         # Session / conversation management (optional)
         session_manager: Any | None = None,
+
+        # MCP (Model Context Protocol) integration (optional)
+        mcp_server_urls: list[str] | None = None,
+        mcp_server_configs: list[dict | Any] | None = None,
+        mcp_resource_uris: list[str] | None = None,
     ):
         # ── Resolve instructions (direct construction) ─────────────────
         base_prompt = system_prompt
@@ -301,6 +306,17 @@ class Agent:
         self.max_tokens = max_tokens
         self.temperature = temperature
 
+        # ── MCP bridge (optional): connects at startup, registers tools ──
+        mcp_bridge = None
+        mcp_specs = list(mcp_server_urls or []) + list(mcp_server_configs or [])
+        if mcp_specs:
+            from curio_agent_sdk.mcp.bridge import MCPBridge
+            mcp_bridge = MCPBridge(
+                server_specs=mcp_specs,
+                tool_registry=self.registry,
+                resource_uris=mcp_resource_uris,
+            )
+
         # ── Build Runtime ───────────────────────────────────────────
         self.runtime = Runtime(
             loop=self.loop,
@@ -321,6 +337,7 @@ class Agent:
             plan_mode=getattr(self, "plan_mode", None),
             todo_manager=getattr(self, "todo_manager", None),
             session_manager=session_manager,
+            mcp_bridge=mcp_bridge,
         )
         self.session_manager = session_manager
 

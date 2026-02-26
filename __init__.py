@@ -141,6 +141,14 @@ from curio_agent_sdk.core.session import (
     SessionStore,
     InMemorySessionStore,
 )
+from curio_agent_sdk.mcp import (
+    MCPClient,
+    MCPToolAdapter,
+    MCPBridge,
+    MCPServerConfig,
+    load_mcp_servers_from_file,
+    resolve_env_in_config,
+)
 
 __version__ = "0.6.0"
 
@@ -260,6 +268,13 @@ __all__ = [
     "SessionManager",
     "SessionStore",
     "InMemorySessionStore",
+    # MCP (Model Context Protocol)
+    "MCPClient",
+    "MCPToolAdapter",
+    "MCPBridge",
+    "MCPServerConfig",
+    "load_mcp_servers_from_file",
+    "resolve_env_in_config",
     # Structured output
     "response_format_to_schema",
     "parse_structured_output",

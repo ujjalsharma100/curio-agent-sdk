@@ -332,6 +332,67 @@ class AgentBuilder:
             self._config["read_only_tool_names"] = read_only_tool_names
         return self
 
+    # ── MCP (Model Context Protocol) ────────────────────────────────
+
+    def mcp_server(self, server_url: str) -> AgentBuilder:
+        """
+        Add an MCP server by URL. Tools are discovered at agent startup.
+
+        Examples:
+            .mcp_server("stdio://npx -y @modelcontextprotocol/server-filesystem /path")
+            .mcp_server("http://localhost:8080/sse")
+        """
+        if "mcp_server_urls" not in self._config:
+            self._config["mcp_server_urls"] = []
+        self._config["mcp_server_urls"].append(server_url)
+        return self
+
+    def mcp_server_config(self, config: dict) -> AgentBuilder:
+        """
+        Add an MCP server from a Cursor/Claude-style config (command, args, env or url, headers).
+
+        Example (stdio with credentials):
+            .mcp_server_config({
+                "command": "npx",
+                "args": ["-y", "@modelcontextprotocol/server-github"],
+                "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_..."},
+            })
+        Example (HTTP with auth):
+            .mcp_server_config({
+                "url": "https://api.example.com/mcp",
+                "headers": {"Authorization": "Bearer ..."},
+            })
+        Env values like "$GITHUB_TOKEN" are resolved from os.environ at connect time.
+        """
+        if "mcp_server_configs" not in self._config:
+            self._config["mcp_server_configs"] = []
+        self._config["mcp_server_configs"].append(config)
+        return self
+
+    def mcp_servers_from_file(self, path: str | Path) -> AgentBuilder:
+        """
+        Load MCP servers from a JSON file (Cursor/Claude mcp.json style).
+
+        Expected format: {"mcpServers": {"name": {"command": "...", "args": [...], "env": {...}}}}
+        or {"mcpServers": {"name": {"url": "...", "headers": {...}}}}.
+        Disabled servers are skipped. Use resolve_env to expand $VAR in env/headers.
+        """
+        from curio_agent_sdk.mcp.config import load_mcp_servers_from_file
+        configs = load_mcp_servers_from_file(path)
+        if "mcp_server_configs" not in self._config:
+            self._config["mcp_server_configs"] = []
+        for cfg in configs:
+            self._config["mcp_server_configs"].append(cfg)
+        return self
+
+    def mcp_resources_for_context(self, resource_uris: list[str]) -> AgentBuilder:
+        """
+        MCP resource URIs to fetch and inject as context at the start of each run.
+        Requires at least one .mcp_server() to be configured.
+        """
+        self._config["mcp_resource_uris"] = list(resource_uris)
+        return self
+
     # ── Subagent / multi-agent ──────────────────────────────────────
 
     def subagent(self, name: str, config: "SubagentConfig | dict[str, Any]") -> AgentBuilder:
@@ -393,6 +454,11 @@ class AgentBuilder:
             config["skills"] = config.pop("skills", [])
         else:
             config.pop("skills", None)
+
+        # MCP (optional)
+        config.setdefault("mcp_server_urls", None)
+        config.setdefault("mcp_server_configs", None)
+        config.setdefault("mcp_resource_uris", None)
 
         return Agent(**config)
 

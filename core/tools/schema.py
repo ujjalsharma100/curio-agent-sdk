@@ -121,6 +121,37 @@ class ToolSchema:
         return validated
 
     @classmethod
+    def from_json_schema(
+        cls,
+        name: str,
+        description: str,
+        json_schema: dict[str, Any],
+    ) -> ToolSchema:
+        """
+        Build a ToolSchema from a JSON Schema object (e.g. MCP inputSchema).
+
+        Uses "properties" and "required" to build ToolParameter list.
+        """
+        properties = json_schema.get("properties", {})
+        required_names = set(json_schema.get("required", []))
+        parameters = []
+        for param_name, prop in properties.items():
+            if not isinstance(prop, dict):
+                continue
+            param_type = prop.get("type", "string")
+            parameters.append(
+                ToolParameter(
+                    name=param_name,
+                    type=param_type,
+                    description=prop.get("description", ""),
+                    required=param_name in required_names,
+                    enum=prop.get("enum"),
+                    items=prop.get("items") if param_type == "array" else None,
+                )
+            )
+        return cls(name=name, description=description, parameters=parameters)
+
+    @classmethod
     def from_function(cls, func: Callable, name: str | None = None, description: str | None = None) -> ToolSchema:
         """
         Auto-generate a ToolSchema from a function's signature, type hints, and docstring.

@@ -189,6 +189,9 @@ class Runtime:
 
         # Session / conversation management (optional)
         session_manager: SessionManager | None = None,
+
+        # MCP (Model Context Protocol) integration (optional)
+        mcp_bridge: Any = None,
     ):
         self.loop = loop
         self.llm = llm
@@ -207,6 +210,7 @@ class Runtime:
         self.plan_mode = plan_mode
         self.todo_manager = todo_manager
         self.session_manager = session_manager
+        self.mcp_bridge = mcp_bridge
 
         # Hook registry: primary lifecycle mechanism; event emission goes through it
         self.hook_registry = hook_registry if hook_registry is not None else HookRegistry()
@@ -234,6 +238,7 @@ class Runtime:
             self.state_store,
             self.llm,
             self.loop,
+            self.mcp_bridge,
         ]
         seen: set[int] = set()
         out: list[Component] = []
@@ -332,6 +337,23 @@ class Runtime:
         if first.role == "system":
             combined = (first.text or "") + "\n\n---\n\n" + extra
             state.messages[0] = Message.system(combined)
+
+    async def _inject_mcp_resource_context(self, state: AgentState) -> None:
+        """Inject MCP resource content into the first system message when configured."""
+        if self.mcp_bridge is None or not getattr(self.mcp_bridge, "resource_uris", None):
+            return
+        if not state.messages:
+            return
+        try:
+            context = await self.mcp_bridge.get_resource_context()
+            if not context.strip():
+                return
+            first = state.messages[0]
+            if first.role == "system":
+                combined = (first.text or "") + "\n\n---\n\nMCP resources:\n\n" + context
+                state.messages[0] = Message.system(combined)
+        except Exception as e:
+            logger.debug("MCP resource context injection failed: %s", e)
 
     # ── Memory (delegates to MemoryManager) ─────────────────────────
 
@@ -575,9 +597,11 @@ class Runtime:
                 max_iterations=self.max_iterations,
             )
             await self.inject_memory_context(state, input, run_id=run_id, agent_id=agent_id)
+            await self._inject_mcp_resource_context(state)
         elif state is None:
             state = self.create_state(input, context)
             await self.inject_memory_context(state, input, run_id=run_id, agent_id=agent_id)
+            await self._inject_mcp_resource_context(state)
 
         # Bind plan mode and todo manager to state (for tools that call enter_plan_mode, create_todo, etc.)
         self._last_state = state
@@ -888,6 +912,7 @@ class Runtime:
 
         state = self.create_state(input, context)
         await self.inject_memory_context(state, input, run_id=run_id, agent_id=agent_id)
+        await self._inject_mcp_resource_context(state)
         await self._memory_on_run_start(input, state)
 
         if hasattr(self.loop, 'run_id'):

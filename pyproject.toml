@@ -66,6 +66,7 @@ packages = [
     "curio_agent_sdk.core.tools",
     "curio_agent_sdk.llm",
     "curio_agent_sdk.llm.providers",
+    "curio_agent_sdk.mcp",
     "curio_agent_sdk.models",
     "curio_agent_sdk.persistence",
 ]
