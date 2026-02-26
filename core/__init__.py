@@ -6,7 +6,7 @@ Contains the agent, loops, tools, and state management.
 
 from curio_agent_sdk.core.agent import Agent
 from curio_agent_sdk.core.component import Component
-from curio_agent_sdk.core.state import AgentState
+from curio_agent_sdk.core.state import AgentState, StateExtension
 from curio_agent_sdk.core.tools import Tool, tool, ToolSchema, ToolRegistry, ToolExecutor
 from curio_agent_sdk.core.loops import AgentLoop, ToolCallingLoop, PlanCritiqueSynthesizeLoop
 
@@ -18,6 +18,7 @@ __all__ = [
     "Agent",
     "Component",
     "AgentState",
+    "StateExtension",
     "Tool",
     "tool",
     "ToolSchema",

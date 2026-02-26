@@ -79,7 +79,7 @@ class InMemoryStateStore(StateStore, Component):
 
         checkpoint, tool_schemas = entry
         messages = checkpoint.restore_messages()
-        return AgentState(
+        state = AgentState(
             messages=messages,
             tool_schemas=tool_schemas,
             iteration=checkpoint.iteration,
@@ -90,6 +90,9 @@ class InMemoryStateStore(StateStore, Component):
             total_input_tokens=checkpoint.total_input_tokens,
             total_output_tokens=checkpoint.total_output_tokens,
         )
+        state.set_extensions_from_checkpoint(checkpoint.extensions)
+        state.set_transition_history(checkpoint.transition_history)
+        return state
 
     async def list_runs(self, agent_id: str) -> list[str]:
         runs = []
@@ -152,7 +155,7 @@ class FileStateStore(StateStore, Component):
             data = path.read_bytes()
             checkpoint = Checkpoint.deserialize(data)
             messages = checkpoint.restore_messages()
-            return AgentState(
+            state = AgentState(
                 messages=messages,
                 iteration=checkpoint.iteration,
                 max_iterations=25,
@@ -162,6 +165,9 @@ class FileStateStore(StateStore, Component):
                 total_input_tokens=checkpoint.total_input_tokens,
                 total_output_tokens=checkpoint.total_output_tokens,
             )
+            state.set_extensions_from_checkpoint(checkpoint.extensions)
+            state.set_transition_history(checkpoint.transition_history)
+            return state
         except Exception as e:
             logger.warning("Failed to load state for run %s: %s", run_id, e)
             return None

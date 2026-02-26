@@ -26,7 +26,7 @@ Quick start:
 from curio_agent_sdk.core.agent import Agent
 from curio_agent_sdk.core.runtime import Runtime
 from curio_agent_sdk.core.builder import AgentBuilder
-from curio_agent_sdk.core.state import AgentState
+from curio_agent_sdk.core.state import AgentState, StateExtension
 from curio_agent_sdk.core.tools.tool import Tool, tool, ToolConfig
 from curio_agent_sdk.core.tools.schema import ToolSchema, ToolParameter
 from curio_agent_sdk.core.tools.registry import ToolRegistry
@@ -116,6 +116,7 @@ __all__ = [
     "Runtime",
     "AgentBuilder",
     "AgentState",
+    "StateExtension",
     "Tool",
     "tool",
     "ToolConfig",

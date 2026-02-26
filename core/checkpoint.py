@@ -103,6 +103,8 @@ class Checkpoint:
     - Iteration counter
     - Metrics
     - Metadata
+    - State extensions (typed extensions implementing StateExtension)
+    - State transition history
     """
     run_id: str
     agent_id: str
@@ -117,8 +119,16 @@ class Checkpoint:
     total_input_tokens: int = 0
     total_output_tokens: int = 0
 
+    # State extensions (keyed by type module.qualname)
+    extensions: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    # State transition history: list of [phase_name, monotonic_timestamp]
+    transition_history: list[tuple[str, float]] = field(default_factory=list)
+
     def serialize(self) -> bytes:
         """Serialize the checkpoint to bytes (JSON)."""
+        # JSON-serializable form of transition_history: list of [str, float]
+        th_list = [[p, t] for p, t in self.transition_history]
         data = {
             "run_id": self.run_id,
             "agent_id": self.agent_id,
@@ -130,6 +140,8 @@ class Checkpoint:
             "total_tool_calls": self.total_tool_calls,
             "total_input_tokens": self.total_input_tokens,
             "total_output_tokens": self.total_output_tokens,
+            "extensions": self.extensions,
+            "transition_history": th_list,
         }
         return json.dumps(data, default=str).encode("utf-8")
 
@@ -137,6 +149,11 @@ class Checkpoint:
     def deserialize(cls, data: bytes) -> Checkpoint:
         """Deserialize a checkpoint from bytes."""
         d = json.loads(data.decode("utf-8"))
+        th_raw = d.get("transition_history", [])
+        th_tuples: list[tuple[str, float]] = [
+            (item[0], float(item[1])) for item in th_raw
+            if isinstance(item, (list, tuple)) and len(item) >= 2
+        ]
         return cls(
             run_id=d["run_id"],
             agent_id=d["agent_id"],
@@ -148,6 +165,8 @@ class Checkpoint:
             total_tool_calls=d.get("total_tool_calls", 0),
             total_input_tokens=d.get("total_input_tokens", 0),
             total_output_tokens=d.get("total_output_tokens", 0),
+            extensions=d.get("extensions", {}),
+            transition_history=th_tuples,
         )
 
     @classmethod
@@ -161,6 +180,8 @@ class Checkpoint:
             agent_id: The agent ID.
         """
         messages = [_serialize_message(m) for m in state.messages]
+        extensions = getattr(state, "get_extensions_for_checkpoint", lambda: {})()
+        transition_history = getattr(state, "get_transition_history", lambda: [])()
 
         return cls(
             run_id=run_id,
@@ -172,6 +193,8 @@ class Checkpoint:
             total_tool_calls=state.total_tool_calls,
             total_input_tokens=state.total_input_tokens,
             total_output_tokens=state.total_output_tokens,
+            extensions=extensions,
+            transition_history=transition_history,
         )
 
     def restore_messages(self) -> list[Message]:
