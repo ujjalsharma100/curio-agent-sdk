@@ -180,6 +180,10 @@ class Runtime:
 
         # Skills (for activate/deactivate and prompt injection)
         skill_registry: SkillRegistry | None = None,
+
+        # Plan mode & todos (optional)
+        plan_mode: Any = None,
+        todo_manager: Any = None,
     ):
         self.loop = loop
         self.llm = llm
@@ -195,6 +199,8 @@ class Runtime:
         self.checkpoint_interval = checkpoint_interval
         self.on_event = on_event
         self.skill_registry = skill_registry
+        self.plan_mode = plan_mode
+        self.todo_manager = todo_manager
 
         # Hook registry: primary lifecycle mechanism; event emission goes through it
         self.hook_registry = hook_registry if hook_registry is not None else HookRegistry()
@@ -210,6 +216,8 @@ class Runtime:
 
         # Component lifecycle: start once before first run, shutdown on close
         self._components_started = False
+        # Last state from current or most recent run (for get_plan(), etc.)
+        self._last_state: AgentState | None = None
 
     # ── Component lifecycle ─────────────────────────────────────────
 
@@ -530,6 +538,13 @@ class Runtime:
             state = self.create_state(input, context)
             await self.inject_memory_context(state, input, run_id=run_id, agent_id=agent_id)
 
+        # Bind plan mode and todo manager to state (for tools that call enter_plan_mode, create_todo, etc.)
+        self._last_state = state
+        if self.plan_mode is not None:
+            self.plan_mode.set_state(state)
+        if self.todo_manager is not None:
+            self.todo_manager.set_state(state)
+
         # Activate requested skills (add tools + record prompts for injection)
         if active_skills and self.skill_registry:
             for name in active_skills:
@@ -693,6 +708,12 @@ class Runtime:
         run_id = run_id or str(uuid.uuid4())
 
         await self._ensure_components_started()
+
+        self._last_state = state
+        if self.plan_mode is not None:
+            self.plan_mode.set_state(state)
+        if self.todo_manager is not None:
+            self.todo_manager.set_state(state)
 
         self._inject_active_skill_prompts(state)
 

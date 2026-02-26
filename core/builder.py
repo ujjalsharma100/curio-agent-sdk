@@ -288,6 +288,33 @@ class AgentBuilder:
         self._config["skills"] = list(skills)
         return self
 
+    # ── Plan mode & todos ────────────────────────────────────────────
+
+    def plan_mode(
+        self,
+        plan_mode: Any | None = None,
+        todo_manager: Any | None = None,
+        read_only_tool_names: list[str] | None = None,
+    ) -> AgentBuilder:
+        """
+        Enable plan mode and/or todo tracking. Registers enter_plan_mode, exit_plan_mode,
+        approve_plan, create_todo, update_todo, list_todos, get_todo tools.
+
+        Example:
+            .plan_mode(read_only_tool_names=["read_file", "list_dir"])
+        """
+        if "plan_mode" not in self._config:
+            self._config["plan_mode"] = None
+            self._config["todo_manager"] = None
+            self._config["read_only_tool_names"] = None
+        if plan_mode is not None:
+            self._config["plan_mode"] = plan_mode
+        if todo_manager is not None:
+            self._config["todo_manager"] = todo_manager
+        if read_only_tool_names is not None:
+            self._config["read_only_tool_names"] = read_only_tool_names
+        return self
+
     # ── Subagent / multi-agent ──────────────────────────────────────
 
     def subagent(self, name: str, config: "SubagentConfig | dict[str, Any]") -> AgentBuilder:

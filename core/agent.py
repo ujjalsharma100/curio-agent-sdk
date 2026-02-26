@@ -142,6 +142,11 @@ class Agent:
 
         # Subagent / multi-agent (optional)
         subagent_configs: dict[str, Any] | None = None,
+
+        # Plan mode & todos (optional)
+        plan_mode: Any | None = None,
+        todo_manager: Any | None = None,
+        read_only_tool_names: list[str] | None = None,
     ):
         # ── Resolve instructions (direct construction) ─────────────────
         base_prompt = system_prompt
@@ -204,6 +209,34 @@ class Agent:
                 return result.output or result.error or ""
 
             self.registry.register(spawn_subagent)
+
+        # ── Plan mode & todos ─────────────────────────────────────────
+        self.plan_mode = plan_mode
+        self.todo_manager = todo_manager
+        if plan_mode is not None or todo_manager is not None or read_only_tool_names is not None:
+            from curio_agent_sdk.core.plan_mode import (
+                PlanMode,
+                TodoManager,
+                get_plan_mode_tools,
+            )
+            pm = plan_mode
+            tm = todo_manager
+            if pm is None:
+                pm = PlanMode(
+                    read_only_tool_names=read_only_tool_names or [],
+                    tool_registry=self.registry,
+                )
+            else:
+                if getattr(pm, "tool_registry", None) is None:
+                    pm.tool_registry = self.registry
+                if read_only_tool_names is not None:
+                    pm.read_only_tool_names = read_only_tool_names
+            if tm is None:
+                tm = TodoManager()
+            self.plan_mode = pm
+            self.todo_manager = tm
+            for t in get_plan_mode_tools(pm, tm):
+                self.registry.register(t)
 
         self.executor = ToolExecutor(
             self.registry,
@@ -282,6 +315,8 @@ class Agent:
             hook_registry=self.hook_registry,
             on_event=on_event,
             skill_registry=self.skill_registry,
+            plan_mode=getattr(self, "plan_mode", None),
+            todo_manager=getattr(self, "todo_manager", None),
         )
 
         # Expose the resolved memory_manager from runtime
@@ -525,6 +560,29 @@ class Agent:
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Shut down components when exiting async with block."""
         await self.close()
+
+    # ── Plan mode & todos ───────────────────────────────────────────
+
+    def is_in_plan_mode(self) -> bool:
+        """Return True if the agent is in plan mode (read-only exploration). Uses state from current/last run."""
+        if self.plan_mode is None:
+            return False
+        state = getattr(self.runtime, "_last_state", None)
+        return self.plan_mode.is_in_plan_mode(state)
+
+    def is_awaiting_plan_approval(self) -> bool:
+        """Return True if the agent has submitted a plan and is waiting for approval."""
+        if self.plan_mode is None:
+            return False
+        state = getattr(self.runtime, "_last_state", None)
+        return self.plan_mode.is_awaiting_approval(state)
+
+    def get_plan(self) -> Any | None:
+        """Return the current plan if any (from PlanState). None if no plan mode or no plan."""
+        if self.plan_mode is None:
+            return None
+        state = getattr(self.runtime, "_last_state", None)
+        return self.plan_mode.get_plan(state)
 
     # ── Rules / instructions ────────────────────────────────────────
 

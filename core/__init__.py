@@ -19,6 +19,16 @@ from curio_agent_sdk.core.instructions import (
 )
 from curio_agent_sdk.core.skills import Skill, SkillRegistry, get_active_skill_prompts
 from curio_agent_sdk.core.subagent import SubagentConfig, AgentOrchestrator
+from curio_agent_sdk.core.plan_mode import (
+    Plan,
+    PlanStep,
+    PlanState,
+    Todo,
+    TodoState,
+    TodoManager,
+    PlanMode,
+    get_plan_mode_tools,
+)
 
 __all__ = [
     "Agent",
@@ -42,4 +52,12 @@ __all__ = [
     "get_active_skill_prompts",
     "SubagentConfig",
     "AgentOrchestrator",
+    "Plan",
+    "PlanStep",
+    "PlanState",
+    "Todo",
+    "TodoState",
+    "TodoManager",
+    "PlanMode",
+    "get_plan_mode_tools",
 ]
