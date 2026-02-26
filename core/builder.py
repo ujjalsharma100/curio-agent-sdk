@@ -20,6 +20,7 @@ Example:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any, Callable, TYPE_CHECKING
 
 from curio_agent_sdk.core.tools.tool import Tool
@@ -214,6 +215,30 @@ class AgentBuilder:
         self._config["checkpoint_interval"] = n
         return self
 
+    # ── Rules / instructions ────────────────────────────────────────
+
+    def instructions(self, source: Any) -> AgentBuilder:
+        """
+        Set instructions from an InstructionLoader or raw string.
+        Merged with system_prompt when building (instructions appended after base prompt).
+
+        Example:
+            .instructions(InstructionLoader())
+            .instructions("Always respond in JSON format.")
+        """
+        self._config["instructions"] = source
+        return self
+
+    def instructions_file(self, path: str | Path) -> AgentBuilder:
+        """
+        Load instructions from a single file. Merged with system_prompt when building.
+
+        Example:
+            .instructions_file("./AGENT.md")
+        """
+        self._config["instructions_file"] = path
+        return self
+
     # ── Hooks & events ──────────────────────────────────────────────
 
     def hook_registry(self, registry: HookRegistry) -> AgentBuilder:
@@ -252,15 +277,36 @@ class AgentBuilder:
         Build and return the configured Agent.
 
         All unset parameters use Agent's defaults. Any .hook() registrations
-        are applied to the hook registry (created or provided).
+        are applied to the hook registry (created or provided). Instructions
+        (from .instructions() or .instructions_file()) are merged into system_prompt.
         """
         from curio_agent_sdk.core.agent import Agent
         from curio_agent_sdk.core.hooks import HookRegistry
+        from curio_agent_sdk.core.instructions import (
+            InstructionLoader,
+            load_instructions_from_file,
+        )
         config = dict(self._config)
         registry = config.get("hook_registry") or HookRegistry()
         for event, handler, priority in config.pop("hooks", []):
             registry.on(event, handler, priority=priority)
         config["hook_registry"] = registry
+
+        # Resolve instructions and merge into system_prompt
+        resolved_instructions: str = ""
+        if "instructions_file" in config:
+            path = config.pop("instructions_file")
+            resolved_instructions = load_instructions_from_file(path)
+        if "instructions" in config:
+            source = config.pop("instructions")
+            if isinstance(source, InstructionLoader):
+                resolved_instructions = source.load()
+            elif isinstance(source, str):
+                resolved_instructions = source
+        if resolved_instructions:
+            base = config.get("system_prompt") or "You are a helpful assistant."
+            config["system_prompt"] = f"{base}\n\n---\n\n{resolved_instructions}"
+
         return Agent(**config)
 
     # ── Utility ─────────────────────────────────────────────────────

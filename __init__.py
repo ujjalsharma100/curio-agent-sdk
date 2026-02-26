@@ -115,6 +115,10 @@ from curio_agent_sdk.exceptions import (
 # Context optimization
 from curio_agent_sdk.core.object_identifier_map import ObjectIdentifierMap
 from curio_agent_sdk.core.context import ContextManager
+from curio_agent_sdk.core.instructions import (
+    InstructionLoader,
+    load_instructions_from_file,
+)
 
 __version__ = "0.6.0"
 
@@ -211,6 +215,9 @@ __all__ = [
     "run_shell_hook",
     "load_hooks_from_config",
     "load_hooks_from_file",
+    # Rules / instructions
+    "InstructionLoader",
+    "load_instructions_from_file",
     # Utilities
     "ObjectIdentifierMap",
     "ContextManager",

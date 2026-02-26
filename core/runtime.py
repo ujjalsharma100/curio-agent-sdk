@@ -155,6 +155,7 @@ class Runtime:
         tool_registry: ToolRegistry,
         tool_executor: ToolExecutor,
         system_prompt: str = "You are a helpful assistant.",
+        extra_instructions: list[str] | None = None,
 
         # Limits
         max_iterations: int = 25,
@@ -180,6 +181,7 @@ class Runtime:
         self.tool_registry = tool_registry
         self.tool_executor = tool_executor
         self.system_prompt = system_prompt
+        self.extra_instructions: list[str] = list(extra_instructions or [])
         self.max_iterations = max_iterations
         self.timeout = timeout
         self.iteration_timeout = iteration_timeout
@@ -270,7 +272,10 @@ class Runtime:
         Public so that advanced users can create state, modify it,
         then pass to run_with_state().
         """
-        messages = [Message.system(self.system_prompt)]
+        prompt = self.system_prompt
+        if self.extra_instructions:
+            prompt = f"{prompt}\n\n---\n\n" + "\n\n".join(self.extra_instructions)
+        messages = [Message.system(prompt)]
 
         if context:
             import json
@@ -285,6 +290,18 @@ class Runtime:
             tool_schemas=self.tool_registry.get_llm_schemas(),
             max_iterations=self.max_iterations,
         )
+
+    def add_instructions(self, text: str) -> None:
+        """
+        Append instructions to be injected into the system prompt on the next run.
+        Use for dynamic instruction injection (e.g. rules added mid-session).
+        """
+        if text and text.strip():
+            self.extra_instructions.append(text.strip())
+
+    def clear_extra_instructions(self) -> None:
+        """Clear any dynamically added instructions."""
+        self.extra_instructions.clear()
 
     # ── Memory (delegates to MemoryManager) ─────────────────────────
 

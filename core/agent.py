@@ -126,14 +126,35 @@ class Agent:
         state_store: StateStore | None = None,
         checkpoint_interval: int = 1,
 
+        # Rules / instructions (merged into system_prompt)
+        instruction_loader: Any | None = None,
+        instructions: str | None = None,
+        instructions_file: str | None = None,
+
         # Hooks & callbacks
         hook_registry: HookRegistry | None = None,
         on_event: Callable[[AgentEvent], None] | None = None,
     ):
+        # ── Resolve instructions (direct construction) ─────────────────
+        base_prompt = system_prompt
+        if instruction_loader is not None:
+            from curio_agent_sdk.core.instructions import InstructionLoader
+            if isinstance(instruction_loader, InstructionLoader):
+                loaded = instruction_loader.load()
+                if loaded:
+                    base_prompt = f"{base_prompt}\n\n---\n\n{loaded}"
+        if instructions_file is not None:
+            from curio_agent_sdk.core.instructions import load_instructions_from_file
+            loaded = load_instructions_from_file(instructions_file)
+            if loaded:
+                base_prompt = f"{base_prompt}\n\n---\n\n{loaded}"
+        if instructions is not None and instructions.strip():
+            base_prompt = f"{base_prompt}\n\n---\n\n{instructions.strip()}"
+
         # ── Identity ────────────────────────────────────────────────
         self.agent_id = agent_id or f"agent-{uuid.uuid4().hex[:8]}"
         self.agent_name = agent_name
-        self.system_prompt = system_prompt
+        self.system_prompt = base_prompt
 
         # ── Hooks (lifecycle system; on_event is legacy, wired via adapter in Runtime) ──
         self.hook_registry = hook_registry if hook_registry is not None else HookRegistry()
@@ -362,6 +383,19 @@ class Agent:
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Shut down components when exiting async with block."""
         await self.close()
+
+    # ── Rules / instructions ────────────────────────────────────────
+
+    def add_instructions(self, text: str) -> None:
+        """
+        Append instructions to be injected into the system prompt on the next run.
+        Use for dynamic instruction injection (e.g. rules added mid-session).
+        """
+        self.runtime.add_instructions(text)
+
+    def clear_extra_instructions(self) -> None:
+        """Clear any dynamically added instructions."""
+        self.runtime.clear_extra_instructions()
 
     # ── Convenience properties ──────────────────────────────────────
 

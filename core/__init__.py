@@ -13,6 +13,10 @@ from curio_agent_sdk.core.loops import AgentLoop, ToolCallingLoop, PlanCritiqueS
 # Preserve ObjectIdentifierMap (still useful for context optimization)
 from curio_agent_sdk.core.object_identifier_map import ObjectIdentifierMap
 from curio_agent_sdk.core.context import ContextManager
+from curio_agent_sdk.core.instructions import (
+    InstructionLoader,
+    load_instructions_from_file,
+)
 
 __all__ = [
     "Agent",
@@ -29,4 +33,6 @@ __all__ = [
     "PlanCritiqueSynthesizeLoop",
     "ObjectIdentifierMap",
     "ContextManager",
+    "InstructionLoader",
+    "load_instructions_from_file",
 ]
