@@ -21,6 +21,7 @@ from curio_agent_sdk.exceptions import ToolError, ToolNotFoundError
 
 if TYPE_CHECKING:
     from curio_agent_sdk.core.human_input import HumanInputHandler
+    from curio_agent_sdk.core.hooks import HookRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +84,15 @@ class ToolExecutor:
         self,
         registry: ToolRegistry,
         human_input: HumanInputHandler | None = None,
+        hook_registry: HookRegistry | None = None,
     ):
         self.registry = registry
         self.human_input = human_input
+        self.hook_registry = hook_registry
         self._cache: dict[str, _CacheEntry] = {}
+        # Set by the loop before each step for hook context
+        self.run_id: str = ""
+        self.agent_id: str = ""
 
     def _cache_key(self, tool_name: str, arguments: dict[str, Any]) -> str:
         """Generate a deterministic cache key for a tool call."""
@@ -118,14 +124,34 @@ class ToolExecutor:
         Returns:
             ToolResult with the execution result or error.
         """
+        tool_name = tool_call.name
+        args = dict(tool_call.arguments)
+
+        if self.hook_registry:
+            from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_BEFORE, TOOL_CALL_AFTER, TOOL_CALL_ERROR
+            ctx = HookContext(
+                event=TOOL_CALL_BEFORE,
+                data={"tool": tool_name, "tool_name": tool_name, "args": args, "tool_call_id": tool_call.id},
+                run_id=getattr(self, "run_id", "") or "",
+                agent_id=getattr(self, "agent_id", "") or "",
+            )
+            await self.hook_registry.emit(TOOL_CALL_BEFORE, ctx)
+            if ctx.cancelled:
+                return ToolResult(
+                    tool_call_id=tool_call.id,
+                    tool_name=tool_name,
+                    result=None,
+                    error="Tool call cancelled by hook",
+                )
+            tool_name = ctx.data.get("tool_name", tool_name)
+            args = ctx.data.get("args", args)
+
         try:
-            tool = self.registry.get(tool_call.name)
+            tool = self.registry.get(tool_name)
 
             # Human-in-the-loop confirmation
             if tool.config.require_confirmation and self.human_input:
-                confirmed = await self.human_input.confirm_tool_call(
-                    tool_call.name, tool_call.arguments
-                )
+                confirmed = await self.human_input.confirm_tool_call(tool_name, args)
                 if not confirmed:
                     return ToolResult(
                         tool_call_id=tool_call.id,
@@ -136,53 +162,113 @@ class ToolExecutor:
 
             # Check cache
             if tool.config.cache_ttl is not None:
-                cached = self._get_cached(tool_call.name, tool_call.arguments, tool.config.cache_ttl)
+                cached = self._get_cached(tool_name, args, tool.config.cache_ttl)
                 if cached is not None:
-                    logger.debug(f"Cache hit for tool '{tool_call.name}'")
-                    return ToolResult(
+                    logger.debug(f"Cache hit for tool '{tool_name}'")
+                    tr = ToolResult(
                         tool_call_id=tool_call.id,
-                        tool_name=tool_call.name,
+                        tool_name=tool_name,
                         result=cached,
                     )
+                    if self.hook_registry:
+                        from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_AFTER
+                        ctx = HookContext(
+                            event=TOOL_CALL_AFTER,
+                            data={"tool_name": tool_name, "args": args, "result": cached},
+                            run_id=getattr(self, "run_id", "") or "",
+                            agent_id=getattr(self, "agent_id", "") or "",
+                        )
+                        await self.hook_registry.emit(TOOL_CALL_AFTER, ctx)
+                        tr = ToolResult(
+                            tool_call_id=tool_call.id,
+                            tool_name=tool_name,
+                            result=ctx.data.get("result", cached),
+                        )
+                    return tr
 
-            result = await tool.execute(**tool_call.arguments)
+            result = await tool.execute(**args)
 
             # Store in cache if configured
             if tool.config.cache_ttl is not None:
-                self._set_cached(tool_call.name, tool_call.arguments, result, tool.config.cache_ttl)
+                self._set_cached(tool_name, args, result, tool.config.cache_ttl)
 
-            logger.info(f"Tool '{tool_call.name}' executed successfully")
+            logger.info(f"Tool '{tool_name}' executed successfully")
 
-            return ToolResult(
+            tr = ToolResult(
                 tool_call_id=tool_call.id,
-                tool_name=tool_call.name,
+                tool_name=tool_name,
                 result=result,
             )
+            if self.hook_registry:
+                from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_AFTER
+                ctx = HookContext(
+                    event=TOOL_CALL_AFTER,
+                    data={"tool_name": tool_name, "args": args, "result": result},
+                    run_id=getattr(self, "run_id", "") or "",
+                    agent_id=getattr(self, "agent_id", "") or "",
+                )
+                await self.hook_registry.emit(TOOL_CALL_AFTER, ctx)
+                tr = ToolResult(
+                    tool_call_id=tool_call.id,
+                    tool_name=tool_name,
+                    result=ctx.data.get("result", result),
+                )
+            return tr
 
         except ToolNotFoundError as e:
-            logger.error(f"Tool not found: {tool_call.name}")
-            return ToolResult(
+            logger.error(f"Tool not found: {tool_name}")
+            err_result = ToolResult(
                 tool_call_id=tool_call.id,
-                tool_name=tool_call.name,
+                tool_name=tool_name,
                 result=None,
                 error=str(e),
             )
+            if self.hook_registry:
+                from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_ERROR
+                ctx = HookContext(
+                    event=TOOL_CALL_ERROR,
+                    data={"tool_name": tool_name, "args": args, "error": str(e)},
+                    run_id=getattr(self, "run_id", "") or "",
+                    agent_id=getattr(self, "agent_id", "") or "",
+                )
+                await self.hook_registry.emit(TOOL_CALL_ERROR, ctx)
+            return err_result
         except ToolError as e:
-            logger.error(f"Tool error for '{tool_call.name}': {e}")
-            return ToolResult(
+            logger.error(f"Tool error for '{tool_name}': {e}")
+            err_result = ToolResult(
                 tool_call_id=tool_call.id,
-                tool_name=tool_call.name,
+                tool_name=tool_name,
                 result=None,
                 error=str(e),
             )
+            if self.hook_registry:
+                from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_ERROR
+                ctx = HookContext(
+                    event=TOOL_CALL_ERROR,
+                    data={"tool_name": tool_name, "args": args, "error": str(e)},
+                    run_id=getattr(self, "run_id", "") or "",
+                    agent_id=getattr(self, "agent_id", "") or "",
+                )
+                await self.hook_registry.emit(TOOL_CALL_ERROR, ctx)
+            return err_result
         except Exception as e:
-            logger.error(f"Unexpected error executing '{tool_call.name}': {e}")
-            return ToolResult(
+            logger.error(f"Unexpected error executing '{tool_name}': {e}")
+            err_result = ToolResult(
                 tool_call_id=tool_call.id,
-                tool_name=tool_call.name,
+                tool_name=tool_name,
                 result=None,
                 error=f"Unexpected error: {e}",
             )
+            if self.hook_registry:
+                from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_ERROR
+                ctx = HookContext(
+                    event=TOOL_CALL_ERROR,
+                    data={"tool_name": tool_name, "args": args, "error": err_result.error},
+                    run_id=getattr(self, "run_id", "") or "",
+                    agent_id=getattr(self, "agent_id", "") or "",
+                )
+                await self.hook_registry.emit(TOOL_CALL_ERROR, ctx)
+            return err_result
 
     async def execute_all(self, tool_calls: list[ToolCall]) -> list[ToolResult]:
         """

@@ -3,6 +3,9 @@ Middleware base class and pipeline for intercepting LLM and tool calls.
 
 Middleware provides a composable way to add cross-cutting concerns like
 logging, cost tracking, rate limiting, and retry logic.
+
+Hooks (HookRegistry) are emitted at the same lifecycle points when provided,
+so observability can be implemented as hook consumers instead of middleware.
 """
 
 from __future__ import annotations
@@ -13,6 +16,7 @@ from typing import Any, AsyncIterator, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from curio_agent_sdk.models.llm import LLMRequest, LLMResponse, LLMStreamChunk
+    from curio_agent_sdk.core.hooks import HookRegistry, HookContext
 
 logger = logging.getLogger(__name__)
 
@@ -67,13 +71,36 @@ class MiddlewarePipeline:
     Runs a list of middleware in order for LLM and tool call hooks.
 
     The pipeline wraps an LLMClient to transparently intercept calls.
+    When hook_registry is provided, emits llm.call.before / llm.call.after / llm.call.error.
     """
 
-    def __init__(self, middleware: list[Middleware]):
+    def __init__(
+        self,
+        middleware: list[Middleware],
+        hook_registry: HookRegistry | None = None,
+    ):
         self.middleware = list(middleware)
+        self.hook_registry = hook_registry
 
-    async def run_before_llm(self, request: LLMRequest) -> LLMRequest:
-        """Run all before_llm_call hooks in order."""
+    async def run_before_llm(
+        self,
+        request: LLMRequest,
+        run_id: str | None = None,
+        agent_id: str | None = None,
+    ) -> LLMRequest:
+        """Run all before_llm_call hooks in order; emit llm.call.before if hook_registry set."""
+        if self.hook_registry:
+            from curio_agent_sdk.core.hooks import HookContext, LLM_CALL_BEFORE
+            ctx = HookContext(
+                event=LLM_CALL_BEFORE,
+                data={"request": request},
+                run_id=run_id or "",
+                agent_id=agent_id or "",
+            )
+            await self.hook_registry.emit(LLM_CALL_BEFORE, ctx)
+            if ctx.cancelled:
+                raise RuntimeError("LLM call cancelled by hook")
+            request = ctx.data.get("request", request)
         for mw in self.middleware:
             try:
                 request = await mw.before_llm_call(request)
@@ -82,14 +109,30 @@ class MiddlewarePipeline:
                 raise
         return request
 
-    async def run_after_llm(self, request: LLMRequest, response: LLMResponse) -> LLMResponse:
-        """Run all after_llm_call hooks in order."""
+    async def run_after_llm(
+        self,
+        request: LLMRequest,
+        response: LLMResponse,
+        run_id: str | None = None,
+        agent_id: str | None = None,
+    ) -> LLMResponse:
+        """Run all after_llm_call hooks in order; emit llm.call.after if hook_registry set."""
         for mw in self.middleware:
             try:
                 response = await mw.after_llm_call(request, response)
             except Exception as e:
                 logger.error(f"Middleware {mw.__class__.__name__}.after_llm_call failed: {e}")
                 raise
+        if self.hook_registry:
+            from curio_agent_sdk.core.hooks import HookContext, LLM_CALL_AFTER
+            ctx = HookContext(
+                event=LLM_CALL_AFTER,
+                data={"request": request, "response": response},
+                run_id=run_id or "",
+                agent_id=agent_id or "",
+            )
+            await self.hook_registry.emit(LLM_CALL_AFTER, ctx)
+            response = ctx.data.get("response", response)
         return response
 
     async def run_before_tool(self, tool_name: str, args: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -112,8 +155,23 @@ class MiddlewarePipeline:
                 raise
         return result
 
-    async def run_on_error(self, error: Exception, context: dict[str, Any]) -> Exception | None:
-        """Run all on_error hooks. If any returns None, error is suppressed."""
+    async def run_on_error(
+        self,
+        error: Exception,
+        context: dict[str, Any],
+        run_id: str | None = None,
+        agent_id: str | None = None,
+    ) -> Exception | None:
+        """Run all on_error hooks; emit llm.call.error if hook_registry set. If any returns None, error is suppressed."""
+        if self.hook_registry:
+            from curio_agent_sdk.core.hooks import HookContext, LLM_CALL_ERROR
+            ctx = HookContext(
+                event=LLM_CALL_ERROR,
+                data={**context, "error": str(error), "exception": error},
+                run_id=run_id or "",
+                agent_id=agent_id or "",
+            )
+            await self.hook_registry.emit(LLM_CALL_ERROR, ctx)
         for mw in self.middleware:
             try:
                 error = await mw.on_error(error, context)
@@ -150,12 +208,17 @@ class _MiddlewareWrappedLLMClient:
         run_id: str | None = None,
         agent_id: str | None = None,
     ) -> LLMResponse:
-        """LLM call with middleware hooks."""
-        request = await self._pipeline.run_before_llm(request)
+        """LLM call with middleware hooks and lifecycle hooks."""
+        request = await self._pipeline.run_before_llm(request, run_id=run_id, agent_id=agent_id)
         try:
             response = await self._inner.call(request, run_id=run_id, agent_id=agent_id)
         except Exception as e:
-            result = await self._pipeline.run_on_error(e, {"phase": "llm_call", "request": request})
+            result = await self._pipeline.run_on_error(
+                e,
+                {"phase": "llm_call", "request": request},
+                run_id=run_id,
+                agent_id=agent_id,
+            )
             if result is None:
                 # Error suppressed - return a minimal error response
                 from curio_agent_sdk.models.llm import LLMResponse, Message, TokenUsage
@@ -168,7 +231,9 @@ class _MiddlewareWrappedLLMClient:
                     error=str(e),
                 )
             raise result
-        response = await self._pipeline.run_after_llm(request, response)
+        response = await self._pipeline.run_after_llm(
+            request, response, run_id=run_id, agent_id=agent_id
+        )
         return response
 
     async def stream(

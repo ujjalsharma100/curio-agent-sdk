@@ -70,6 +70,11 @@ class ToolCallingLoop(AgentLoop):
         if not self.llm:
             raise RuntimeError("LLMClient not set on ToolCallingLoop")
 
+        # Set run_id/agent_id on executor for hook context (tool.call.before/after)
+        if self.tool_executor and hasattr(self.tool_executor, "run_id"):
+            self.tool_executor.run_id = self.run_id or ""
+            self.tool_executor.agent_id = self.agent_id or ""
+
         # Fit messages within context window before building request
         fitted_messages = self._fit_messages(
             state.messages,

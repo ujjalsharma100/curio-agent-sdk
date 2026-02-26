@@ -27,6 +27,14 @@ from curio_agent_sdk.core.agent import Agent
 from curio_agent_sdk.core.runtime import Runtime
 from curio_agent_sdk.core.builder import AgentBuilder
 from curio_agent_sdk.core.state import AgentState, StateExtension
+from curio_agent_sdk.core.hooks import (
+    HookRegistry,
+    HookContext,
+    HOOK_EVENTS,
+    run_shell_hook,
+    load_hooks_from_config,
+    load_hooks_from_file,
+)
 from curio_agent_sdk.core.tools.tool import Tool, tool, ToolConfig
 from curio_agent_sdk.core.tools.schema import ToolSchema, ToolParameter
 from curio_agent_sdk.core.tools.registry import ToolRegistry
@@ -196,6 +204,13 @@ __all__ = [
     "AgentTimeoutError",
     "NoAvailableModelError",
     "CostBudgetExceeded",
+    # Hooks / lifecycle
+    "HookRegistry",
+    "HookContext",
+    "HOOK_EVENTS",
+    "run_shell_hook",
+    "load_hooks_from_config",
+    "load_hooks_from_file",
     # Utilities
     "ObjectIdentifierMap",
     "ContextManager",

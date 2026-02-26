@@ -25,6 +25,7 @@ from typing import Any, AsyncIterator, Callable, TYPE_CHECKING
 
 from curio_agent_sdk.core.builder import AgentBuilder
 from curio_agent_sdk.core.context import ContextManager
+from curio_agent_sdk.core.hooks import HookRegistry
 from curio_agent_sdk.core.loops.base import AgentLoop
 from curio_agent_sdk.core.loops.tool_calling import ToolCallingLoop
 from curio_agent_sdk.core.runtime import Runtime
@@ -125,7 +126,8 @@ class Agent:
         state_store: StateStore | None = None,
         checkpoint_interval: int = 1,
 
-        # Callbacks
+        # Hooks & callbacks
+        hook_registry: HookRegistry | None = None,
         on_event: Callable[[AgentEvent], None] | None = None,
     ):
         # ── Identity ────────────────────────────────────────────────
@@ -133,11 +135,18 @@ class Agent:
         self.agent_name = agent_name
         self.system_prompt = system_prompt
 
+        # ── Hooks (lifecycle system; on_event is legacy, wired via adapter in Runtime) ──
+        self.hook_registry = hook_registry if hook_registry is not None else HookRegistry()
+
         # ── Tools ───────────────────────────────────────────────────
         self.registry = ToolRegistry()
         for t in (tools or []):
             self.registry.register(t)
-        self.executor = ToolExecutor(self.registry, human_input=human_input)
+        self.executor = ToolExecutor(
+            self.registry,
+            human_input=human_input,
+            hook_registry=self.hook_registry,
+        )
 
         # ── LLM Client ──────────────────────────────────────────────
         if llm:
@@ -160,7 +169,10 @@ class Agent:
         self.middleware = middleware or []
         if self.middleware:
             from curio_agent_sdk.middleware.base import MiddlewarePipeline
-            self._middleware_pipeline = MiddlewarePipeline(self.middleware)
+            self._middleware_pipeline = MiddlewarePipeline(
+                self.middleware,
+                hook_registry=self.hook_registry,
+            )
             self.llm = self._middleware_pipeline.wrap_llm_client(self.llm)
         else:
             self._middleware_pipeline = None
@@ -204,6 +216,7 @@ class Agent:
             memory_manager=memory_manager,
             state_store=state_store,
             checkpoint_interval=checkpoint_interval,
+            hook_registry=self.hook_registry,
             on_event=on_event,
         )
 

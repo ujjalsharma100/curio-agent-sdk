@@ -18,6 +18,19 @@ from typing import Any, AsyncIterator, Callable, TYPE_CHECKING
 
 from curio_agent_sdk.core.component import Component
 from curio_agent_sdk.core.context import ContextManager
+from curio_agent_sdk.core.hooks import (
+    HookContext,
+    HookRegistry,
+    AGENT_RUN_BEFORE,
+    AGENT_RUN_AFTER,
+    AGENT_RUN_ERROR,
+    AGENT_ITERATION_BEFORE,
+    AGENT_ITERATION_AFTER,
+    MEMORY_INJECT_BEFORE,
+    MEMORY_SAVE_BEFORE,
+    STATE_CHECKPOINT_BEFORE,
+    STATE_CHECKPOINT_AFTER,
+)
 from curio_agent_sdk.core.loops.base import AgentLoop
 from curio_agent_sdk.core.state import AgentState
 from curio_agent_sdk.core.tools.registry import ToolRegistry
@@ -32,6 +45,57 @@ if TYPE_CHECKING:
     from curio_agent_sdk.llm.client import LLMClient
 
 logger = logging.getLogger(__name__)
+
+
+def _register_on_event_adapter(
+    registry: HookRegistry,
+    on_event: Callable[[AgentEvent], None],
+) -> None:
+    """Register a handler that converts hook events to legacy AgentEvent and calls on_event."""
+    from curio_agent_sdk.models.events import EventType
+
+    def adapter(ctx: HookContext) -> None:
+        event_type = None
+        if ctx.event == AGENT_RUN_BEFORE:
+            event_type = EventType.RUN_STARTED
+        elif ctx.event == AGENT_RUN_AFTER:
+            event_type = EventType.RUN_COMPLETED
+        elif ctx.event == AGENT_RUN_ERROR:
+            kind = ctx.data.get("error_kind", "error")
+            if kind == "timeout":
+                event_type = EventType.RUN_TIMEOUT
+            elif kind == "cancelled":
+                event_type = EventType.RUN_CANCELLED
+            else:
+                event_type = EventType.RUN_ERROR
+        elif ctx.event == AGENT_ITERATION_BEFORE:
+            event_type = EventType.ITERATION_STARTED
+        elif ctx.event == AGENT_ITERATION_AFTER:
+            event_type = EventType.ITERATION_COMPLETED
+        elif ctx.event == STATE_CHECKPOINT_AFTER:
+            action = ctx.data.get("checkpoint_action", "save")
+            event_type = EventType.CHECKPOINT_SAVED if action == "save" else EventType.CHECKPOINT_RESTORED
+        if event_type is not None:
+            try:
+                on_event(AgentEvent(
+                    type=event_type,
+                    run_id=ctx.run_id,
+                    agent_id=ctx.agent_id,
+                    iteration=ctx.iteration,
+                    data=dict(ctx.data),
+                ))
+            except Exception as e:
+                logger.error("on_event callback failed: %s", e)
+
+    for ev in (
+        AGENT_RUN_BEFORE,
+        AGENT_RUN_AFTER,
+        AGENT_RUN_ERROR,
+        AGENT_ITERATION_BEFORE,
+        AGENT_ITERATION_AFTER,
+        STATE_CHECKPOINT_AFTER,
+    ):
+        registry.on(ev, adapter)
 
 
 class Runtime:
@@ -107,7 +171,8 @@ class Runtime:
         state_store: StateStore | None = None,
         checkpoint_interval: int = 1,
 
-        # Callbacks
+        # Hooks & callbacks
+        hook_registry: HookRegistry | None = None,
         on_event: Callable[[AgentEvent], None] | None = None,
     ):
         self.loop = loop
@@ -122,6 +187,11 @@ class Runtime:
         self.state_store = state_store
         self.checkpoint_interval = checkpoint_interval
         self.on_event = on_event
+
+        # Hook registry: primary lifecycle mechanism; event emission goes through it
+        self.hook_registry = hook_registry if hook_registry is not None else HookRegistry()
+        if on_event is not None:
+            _register_on_event_adapter(self.hook_registry, on_event)
 
         # Memory manager (no auto-wrapping; pass MemoryManager explicitly)
         self.memory_manager = memory_manager
@@ -218,25 +288,58 @@ class Runtime:
 
     # ── Memory (delegates to MemoryManager) ─────────────────────────
 
-    async def inject_memory_context(self, state: AgentState, input_text: str) -> None:
+    async def inject_memory_context(
+        self,
+        state: AgentState,
+        input_text: str,
+        run_id: str = "",
+        agent_id: str = "",
+    ) -> None:
         """
         Inject memory context into the agent state.
 
         Delegates to MemoryManager.inject() which uses the configured
-        injection strategy and query strategy.
+        injection strategy and query strategy. Emits memory.inject.before hook.
         """
         if self.memory_manager is None:
             return
+        ctx = HookContext(
+            event=MEMORY_INJECT_BEFORE,
+            data={"input_text": input_text, "state": state},
+            state=state,
+            run_id=run_id,
+            agent_id=agent_id,
+        )
+        await self.hook_registry.emit(MEMORY_INJECT_BEFORE, ctx)
+        if ctx.cancelled:
+            return
         await self.memory_manager.inject(state, input_text)
 
-    async def save_to_memory(self, state: AgentState, input_text: str, output: str) -> None:
+    async def save_to_memory(
+        self,
+        state: AgentState,
+        input_text: str,
+        output: str,
+        run_id: str = "",
+        agent_id: str = "",
+    ) -> None:
         """
         Save the interaction to memory after a successful run.
 
         Delegates to MemoryManager.on_run_end() which uses the configured
-        save strategy.
+        save strategy. Emits memory.save.before hook.
         """
         if self.memory_manager is None:
+            return
+        ctx = HookContext(
+            event=MEMORY_SAVE_BEFORE,
+            data={"input_text": input_text, "output": output, "state": state},
+            state=state,
+            run_id=run_id,
+            agent_id=agent_id,
+        )
+        await self.hook_registry.emit(MEMORY_SAVE_BEFORE, ctx)
+        if ctx.cancelled:
             return
         await self.memory_manager.on_run_end(input_text, output, state)
 
@@ -266,8 +369,25 @@ class Runtime:
             return
 
         try:
+            ctx = HookContext(
+                event=STATE_CHECKPOINT_BEFORE,
+                data={"action": "save", "state": state, "run_id": run_id, "agent_id": agent_id},
+                state=state,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration,
+            )
+            await self.hook_registry.emit(STATE_CHECKPOINT_BEFORE, ctx)
+            if ctx.cancelled:
+                return
             await self.state_store.save(state, run_id, agent_id)
-            self._emit(EventType.CHECKPOINT_SAVED, run_id, agent_id, state.iteration)
+            await self._emit_hook(
+                STATE_CHECKPOINT_AFTER,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration,
+                checkpoint_action="save",
+            )
         except Exception as e:
             logger.warning("Failed to save state: %s", e)
 
@@ -286,7 +406,13 @@ class Runtime:
             state.tool_schemas = self.tool_registry.get_llm_schemas()
             state.max_iterations = self.max_iterations
 
-            self._emit(EventType.CHECKPOINT_RESTORED, run_id, agent_id, state.iteration)
+            await self._emit_hook(
+                STATE_CHECKPOINT_AFTER,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration,
+                checkpoint_action="restore",
+            )
             logger.info("Restored state for run %s at iteration %d", run_id, state.iteration)
             return state
 
@@ -294,22 +420,28 @@ class Runtime:
             logger.warning("Failed to restore state for run %s: %s", run_id, e)
             return None
 
-    # ── Event emission ──────────────────────────────────────────────
+    # ── Hook emission (replaces direct on_event; on_event is wired via adapter) ──
 
-    def _emit(self, event_type: EventType, run_id: str, agent_id: str, iteration: int = 0, **data):
-        """Emit an agent event."""
-        if self.on_event:
-            try:
-                event = AgentEvent(
-                    type=event_type,
-                    run_id=run_id,
-                    agent_id=agent_id,
-                    iteration=iteration,
-                    data=data,
-                )
-                self.on_event(event)
-            except Exception as e:
-                logger.error(f"Event callback failed: {e}")
+    async def _emit_hook(
+        self,
+        event: str,
+        *,
+        run_id: str = "",
+        agent_id: str = "",
+        iteration: int = 0,
+        state: AgentState | None = None,
+        **data: Any,
+    ) -> HookContext:
+        """Emit a lifecycle hook. Event emission (on_event) is handled by adapter if registered."""
+        ctx = HookContext(
+            event=event,
+            data=data,
+            state=state,
+            run_id=run_id,
+            agent_id=agent_id,
+            iteration=iteration,
+        )
+        return await self.hook_registry.emit(event, ctx)
 
     # ── Core execution ──────────────────────────────────────────────
 
@@ -362,7 +494,7 @@ class Runtime:
         # Create fresh state if not resuming
         if state is None:
             state = self.create_state(input, context)
-            await self.inject_memory_context(state, input)
+            await self.inject_memory_context(state, input, run_id=run_id, agent_id=agent_id)
 
         if max_iterations:
             state.max_iterations = max_iterations
@@ -373,10 +505,14 @@ class Runtime:
         if hasattr(self.loop, 'agent_id'):
             self.loop.agent_id = agent_id
 
-        self._emit(EventType.RUN_STARTED, run_id, agent_id, data={
-            "input": input,
-            "resumed": resume_from is not None,
-        })
+        await self._emit_hook(
+            AGENT_RUN_BEFORE,
+            run_id=run_id,
+            agent_id=agent_id,
+            state=state,
+            input=input,
+            resumed=resume_from is not None,
+        )
 
         # Notify memory of run start
         await self._memory_on_run_start(input, state)
@@ -391,8 +527,16 @@ class Runtime:
                 state = await self._execute_loop(state, run_id, agent_id)
 
         except asyncio.TimeoutError:
-            self._emit(EventType.RUN_TIMEOUT, run_id, agent_id, state.iteration,
-                       elapsed=state.elapsed_time)
+            await self._emit_hook(
+                AGENT_RUN_ERROR,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration,
+                state=state,
+                error_kind="timeout",
+                error=f"Agent timed out after {effective_timeout}s",
+                elapsed=state.elapsed_time,
+            )
             await self.save_state(state, run_id, agent_id)
             return AgentRunResult(
                 status="timeout",
@@ -408,8 +552,16 @@ class Runtime:
             )
 
         except asyncio.CancelledError:
-            self._emit(EventType.RUN_CANCELLED, run_id, agent_id, state.iteration,
-                       elapsed=state.elapsed_time)
+            await self._emit_hook(
+                AGENT_RUN_ERROR,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration,
+                state=state,
+                error_kind="cancelled",
+                error="Agent was cancelled",
+                elapsed=state.elapsed_time,
+            )
             await self.save_state(state, run_id, agent_id)
             return AgentRunResult(
                 status="cancelled",
@@ -422,7 +574,15 @@ class Runtime:
 
         except Exception as e:
             logger.error(f"Agent run failed: {e}", exc_info=True)
-            self._emit(EventType.RUN_ERROR, run_id, agent_id, state.iteration, error=str(e))
+            await self._emit_hook(
+                AGENT_RUN_ERROR,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration,
+                state=state,
+                error_kind="error",
+                error=str(e),
+            )
             await self._memory_on_run_error(input, str(e), state)
             await self.save_state(state, run_id, agent_id)
             return AgentRunResult(
@@ -446,10 +606,16 @@ class Runtime:
             output = self.loop.get_output(state)
 
         # Save to memory via MemoryManager
-        await self.save_to_memory(state, input, output)
+        await self.save_to_memory(state, input, output, run_id=run_id, agent_id=agent_id)
 
-        self._emit(EventType.RUN_COMPLETED, run_id, agent_id, state.iteration,
-                    output_length=len(output))
+        await self._emit_hook(
+            AGENT_RUN_AFTER,
+            run_id=run_id,
+            agent_id=agent_id,
+            iteration=state.iteration,
+            state=state,
+            output_length=len(output),
+        )
 
         return AgentRunResult(
             status="completed",
@@ -493,25 +659,49 @@ class Runtime:
         if hasattr(self.loop, 'agent_id'):
             self.loop.agent_id = agent_id
 
-        self._emit(EventType.RUN_STARTED, run_id, agent_id)
+        await self._emit_hook(AGENT_RUN_BEFORE, run_id=run_id, agent_id=agent_id, state=state)
 
         try:
             state = await self._execute_loop(state, run_id, agent_id)
         except asyncio.TimeoutError:
-            self._emit(EventType.RUN_TIMEOUT, run_id, agent_id, state.iteration)
+            await self._emit_hook(
+                AGENT_RUN_ERROR,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration,
+                state=state,
+                error_kind="timeout",
+                error="Timed out",
+            )
             return AgentRunResult(
                 status="timeout", output="", total_iterations=state.iteration,
                 run_id=run_id, error="Timed out", messages=state.messages,
             )
         except asyncio.CancelledError:
-            self._emit(EventType.RUN_CANCELLED, run_id, agent_id, state.iteration)
+            await self._emit_hook(
+                AGENT_RUN_ERROR,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration,
+                state=state,
+                error_kind="cancelled",
+                error="Cancelled",
+            )
             return AgentRunResult(
                 status="cancelled", output="", total_iterations=state.iteration,
                 run_id=run_id, error="Cancelled", messages=state.messages,
             )
         except Exception as e:
             logger.error(f"Agent run failed: {e}", exc_info=True)
-            self._emit(EventType.RUN_ERROR, run_id, agent_id, state.iteration, error=str(e))
+            await self._emit_hook(
+                AGENT_RUN_ERROR,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration,
+                state=state,
+                error_kind="error",
+                error=str(e),
+            )
             return AgentRunResult(
                 status="error", output="", total_iterations=state.iteration,
                 run_id=run_id, error=str(e), messages=state.messages,
@@ -523,7 +713,13 @@ class Runtime:
         else:
             output = self.loop.get_output(state)
 
-        self._emit(EventType.RUN_COMPLETED, run_id, agent_id, state.iteration)
+        await self._emit_hook(
+            AGENT_RUN_AFTER,
+            run_id=run_id,
+            agent_id=agent_id,
+            iteration=state.iteration,
+            state=state,
+        )
 
         return AgentRunResult(
             status="completed",
@@ -562,7 +758,7 @@ class Runtime:
         await self._ensure_components_started()
 
         state = self.create_state(input, context)
-        await self.inject_memory_context(state, input)
+        await self.inject_memory_context(state, input, run_id=run_id, agent_id=agent_id)
         await self._memory_on_run_start(input, state)
 
         if hasattr(self.loop, 'run_id'):
@@ -602,7 +798,13 @@ class Runtime:
             if state.is_cancelled:
                 break
 
-            self._emit(EventType.ITERATION_STARTED, run_id, agent_id, state.iteration + 1)
+            await self._emit_hook(
+                AGENT_ITERATION_BEFORE,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration + 1,
+                state=state,
+            )
 
             if self.iteration_timeout:
                 try:
@@ -611,15 +813,26 @@ class Runtime:
                         timeout=self.iteration_timeout,
                     )
                 except asyncio.TimeoutError:
-                    self._emit(
-                        EventType.ITERATION_COMPLETED, run_id, agent_id, state.iteration,
-                        timeout=True, elapsed=state.elapsed_time,
+                    await self._emit_hook(
+                        AGENT_ITERATION_AFTER,
+                        run_id=run_id,
+                        agent_id=agent_id,
+                        iteration=state.iteration,
+                        state=state,
+                        timeout=True,
+                        elapsed=state.elapsed_time,
                     )
                     raise
             else:
                 state = await self.loop.step(state)
 
-            self._emit(EventType.ITERATION_COMPLETED, run_id, agent_id, state.iteration)
+            await self._emit_hook(
+                AGENT_ITERATION_AFTER,
+                run_id=run_id,
+                agent_id=agent_id,
+                iteration=state.iteration,
+                state=state,
+            )
 
             # Notify memory of iteration
             await self._memory_on_iteration(state, state.iteration)

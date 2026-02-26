@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from curio_agent_sdk.core.context import ContextManager
     from curio_agent_sdk.core.state_store import StateStore
     from curio_agent_sdk.core.human_input import HumanInputHandler
+    from curio_agent_sdk.core.hooks import HookRegistry
     from curio_agent_sdk.llm.client import LLMClient
     from curio_agent_sdk.middleware.base import Middleware
     from curio_agent_sdk.models.events import AgentEvent
@@ -213,10 +214,34 @@ class AgentBuilder:
         self._config["checkpoint_interval"] = n
         return self
 
-    # ── Events ──────────────────────────────────────────────────────
+    # ── Hooks & events ──────────────────────────────────────────────
+
+    def hook_registry(self, registry: HookRegistry) -> AgentBuilder:
+        """Set a custom hook registry (lifecycle hooks)."""
+        self._config["hook_registry"] = registry
+        return self
+
+    def hook(
+        self,
+        event: str,
+        handler: Callable,
+        *,
+        priority: int = 0,
+    ) -> AgentBuilder:
+        """
+        Register a lifecycle hook. Uses the default HookRegistry if none set.
+
+        Example:
+            .hook("tool.call.before", lambda ctx: ctx.cancel() if ctx.data.get("tool_name") == "rm" else None)
+            .hook("agent.run.after", my_async_handler, priority=10)
+        """
+        if "hooks" not in self._config:
+            self._config["hooks"] = []
+        self._config["hooks"].append((event, handler, priority))
+        return self
 
     def on_event(self, callback: Callable[[AgentEvent], None]) -> AgentBuilder:
-        """Set the event callback for observability."""
+        """Set the legacy event callback for observability (wired via hook adapter)."""
         self._config["on_event"] = callback
         return self
 
@@ -226,16 +251,17 @@ class AgentBuilder:
         """
         Build and return the configured Agent.
 
-        All unset parameters use Agent's defaults.
-
-        Returns:
-            A fully configured Agent instance.
-
-        Raises:
-            ValueError: If the configuration is invalid.
+        All unset parameters use Agent's defaults. Any .hook() registrations
+        are applied to the hook registry (created or provided).
         """
         from curio_agent_sdk.core.agent import Agent
-        return Agent(**self._config)
+        from curio_agent_sdk.core.hooks import HookRegistry
+        config = dict(self._config)
+        registry = config.get("hook_registry") or HookRegistry()
+        for event, handler, priority in config.pop("hooks", []):
+            registry.on(event, handler, priority=priority)
+        config["hook_registry"] = registry
+        return Agent(**config)
 
     # ── Utility ─────────────────────────────────────────────────────
 
