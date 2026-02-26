@@ -30,7 +30,7 @@ class ContextManager:
     def __init__(
         self,
         max_tokens: int,
-        strategy: Literal["truncate_oldest", "summarize", "sliding_window"] = "truncate_oldest",
+        strategy: Literal["truncate_oldest", "summarize"] = "truncate_oldest",
         reserve_tokens: int = 1000,
     ):
         self.max_tokens = max_tokens
@@ -83,7 +83,7 @@ class ContextManager:
 
         system_prefix = [system_msg] if system_msg else []
 
-        if self.strategy in ("truncate_oldest", "sliding_window"):
+        if self.strategy == "truncate_oldest":
             return self._fit_truncate_oldest(system_prefix, rest, tools, model)
         if self.strategy == "summarize":
             return self._fit_summarize(system_prefix, rest, tools, model)

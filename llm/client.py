@@ -7,9 +7,10 @@ usage tracking, and streaming into a single async interface.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
-from typing import Any, AsyncIterator, Callable
+from typing import Any, AsyncIterator
 
 from curio_agent_sdk.llm.router import TieredRouter, RouteResult
 from curio_agent_sdk.llm.providers.base import LLMProvider
@@ -21,8 +22,6 @@ from curio_agent_sdk.models.llm import (
     LLMRequest,
     LLMResponse,
     LLMStreamChunk,
-    Message,
-    TokenUsage,
 )
 from curio_agent_sdk.exceptions import (
     LLMError,
@@ -51,10 +50,9 @@ class LLMClient:
 
     This is the primary interface for making LLM calls. It handles:
     - Provider selection via tiered routing
-    - Automatic failover on rate limits / errors
+    - Automatic failover on rate limits / errors with backoff
     - Per-request API keys (no shared mutable state)
     - Streaming responses
-    - Usage tracking via callbacks
 
     Example:
         client = LLMClient(
@@ -75,7 +73,6 @@ class LLMClient:
         self,
         router: TieredRouter | None = None,
         custom_providers: dict[str, type[LLMProvider]] | None = None,
-        on_llm_usage: Callable | None = None,
     ):
         """
         Initialize the LLM client.
@@ -83,10 +80,8 @@ class LLMClient:
         Args:
             router: TieredRouter for provider/model selection. Auto-created from env if None.
             custom_providers: Additional provider classes (name -> class).
-            on_llm_usage: Callback for usage tracking. Called with (provider, model, usage, latency_ms, error).
         """
         self.router = router or TieredRouter()
-        self.on_llm_usage = on_llm_usage
 
         # Build provider class registry
         self._provider_classes: dict[str, type[LLMProvider]] = dict(BUILTIN_PROVIDERS)
@@ -163,16 +158,27 @@ class LLMClient:
                 # Record success
                 self.router.record_success(route.provider, route.key_name)
 
-                # Track usage
-                self._track_usage(route, response, run_id, agent_id)
-
                 return response
 
             except LLMRateLimitError as e:
+                # Optional exponential backoff before failing over to the next model
+                base_delay = getattr(self.router, "retry_delay", 1.0)
+                max_delay = getattr(self.router, "max_retry_delay", 30.0)
+                retry_on_rate_limit = getattr(self.router, "retry_on_rate_limit", True)
+                delay = 0.0
+                if retry_on_rate_limit:
+                    delay = min(base_delay * (2 ** attempt), max_delay)
+                    if e.retry_after:
+                        delay = max(delay, e.retry_after)
+
                 logger.warning(
                     f"Rate limit for {route.provider}:{route.model} "
-                    f"(key={route.key_name}), trying next... (attempt {attempt + 1})"
+                    f"(key={route.key_name}), trying next... (attempt {attempt + 1}, backoff={delay:.1f}s)"
                 )
+
+                if delay > 0:
+                    await asyncio.sleep(delay)
+
                 self.router.record_failure(route.provider, route.key_name, is_rate_limit=True)
                 excluded.append(f"{route.provider}:{route.model}")
                 last_error = e
@@ -254,27 +260,6 @@ class LLMClient:
             tier=request.tier,
             metadata=request.metadata,
         )
-
-    def _track_usage(
-        self,
-        route: RouteResult,
-        response: LLMResponse,
-        run_id: str | None,
-        agent_id: str | None,
-    ):
-        if self.on_llm_usage:
-            try:
-                self.on_llm_usage(
-                    provider=route.provider,
-                    model=route.model,
-                    usage=response.usage,
-                    latency_ms=response.latency_ms,
-                    error=response.error,
-                    run_id=run_id,
-                    agent_id=agent_id,
-                )
-            except Exception as e:
-                logger.error(f"Usage tracking callback failed: {e}")
 
     def get_routing_stats(self) -> dict[str, Any]:
         """Get routing statistics."""

@@ -1,7 +1,6 @@
 """
 MemoryManager — orchestrates how memory is used in the agent lifecycle.
 
-Replaces the hardcoded memory logic that was previously in Agent/Runtime.
 All behavior is customizable via pluggable strategies:
 
 - MemoryInjectionStrategy: Controls HOW memory is injected into conversation
@@ -11,7 +10,7 @@ All behavior is customizable via pluggable strategies:
 Users can swap strategies to completely change memory behavior without
 modifying the agent or runtime code.
 
-Example (default behavior, matches previous hardcoded logic):
+Example (default behavior):
     manager = MemoryManager(memory=ConversationMemory())
     # Uses DefaultInjection, DefaultSave, DefaultQuery
 
@@ -171,8 +170,6 @@ class DefaultInjection(MemoryInjectionStrategy):
     Default injection: query memory with user input, insert as system
     message at position 1 (after the main system prompt).
 
-    This matches the previous hardcoded behavior in Agent/Runtime.
-
     Args:
         max_tokens: Max tokens for memory context. Default 2000.
         position: Where to insert the memory message. Default 1 (after system prompt).
@@ -238,8 +235,6 @@ class NoInjection(MemoryInjectionStrategy):
 class DefaultSave(MemorySaveStrategy):
     """
     Default save: save user input and assistant output after successful runs.
-
-    This matches the previous hardcoded behavior in Agent/Runtime.
     """
 
     async def on_run_end(
@@ -344,8 +339,6 @@ class DefaultQuery(MemoryQueryStrategy):
     """
     Default query: use raw input as the query, 2000 token budget.
 
-    This matches the previous hardcoded behavior in Agent/Runtime.
-
     Args:
         max_tokens_value: Max tokens for memory context. Default 2000.
     """
@@ -431,15 +424,11 @@ class MemoryManager:
     """
     Orchestrates how memory is used in the agent lifecycle.
 
-    Replaces the hardcoded memory logic from Agent/Runtime. All behavior
-    is customizable via pluggable strategies. The MemoryManager is the
-    single point of contact between the Runtime and the Memory backend.
-
-    Default behavior (when no strategies are specified) matches the
-    previous hardcoded behavior exactly, ensuring backward compatibility.
+    All behavior is customizable via pluggable strategies. The MemoryManager
+    is the single point of contact between the Runtime and the Memory backend.
 
     Example:
-        # Default (matches old behavior)
+        # Default
         manager = MemoryManager(memory=ConversationMemory())
 
         # Custom injection: use more tokens, inject as user message

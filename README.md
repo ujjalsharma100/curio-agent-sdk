@@ -11,7 +11,7 @@ Curio Agent SDK provides everything you need to build autonomous agents:
 - **Native tool calling** - Provider-native function calling (OpenAI, Anthropic, Groq, Ollama)
 - **Message-based LLM interface** - Proper system/user/assistant/tool message roles
 - **Tiered model routing** - Automatic selection with failover across providers
-- **Middleware pipeline** - Logging, cost tracking, tracing, guardrails, retry, rate limiting
+- **Middleware pipeline** - Logging, cost tracking, tracing, guardrails, rate limiting
 - **Memory system** - Conversation, vector, key-value, and composite memory
 - **Built-in tools** - Web fetch, file I/O, code execution, HTTP requests
 - **Testing utilities** - MockLLM and AgentTestHarness for deterministic tests
@@ -47,7 +47,7 @@ print(result.output)
 from curio_agent_sdk import (
     Agent, ToolCallingLoop, LLMClient, TieredRouter,
     CostTracker, LoggingMiddleware, TracingMiddleware, GuardrailsMiddleware,
-    ConversationMemory, FileCheckpointStore, ContextManager, CLIHumanInput,
+    ConversationMemory, MemoryManager, FileStateStore, ContextManager, CLIHumanInput,
 )
 
 agent = Agent(
@@ -65,8 +65,8 @@ agent = Agent(
         TracingMiddleware(service_name="my-agent"),
         GuardrailsMiddleware(block_patterns=[r"(?i)password"]),
     ],
-    memory=ConversationMemory(max_entries=50),
-    checkpoint_store=FileCheckpointStore("./checkpoints"),
+    memory_manager=MemoryManager(memory=ConversationMemory(max_entries=50)),
+    state_store=FileStateStore("./state"),
     human_input=CLIHumanInput(),
 )
 
@@ -123,13 +123,14 @@ agent = Agent(model="ollama:llama3.1:8b", ...)
 
 ```
 curio_agent_sdk/
-├── __init__.py                     # Public API (v0.4.0)
+├── __init__.py                     # Public API (v0.6.0)
 ├── exceptions.py                   # Custom exception hierarchy
 ├── core/
 │   ├── agent.py                    # Main Agent class
 │   ├── state.py                    # AgentState
 │   ├── context.py                  # ContextManager (token budgets)
-│   ├── checkpoint.py               # Checkpoint & recovery
+│   ├── checkpoint.py               # Checkpoint serialization
+│   ├── state_store.py              # StateStore & persistence
 │   ├── human_input.py              # Human-in-the-loop
 │   ├── object_identifier_map.py    # Context optimization
 │   ├── loops/
@@ -159,7 +160,6 @@ curio_agent_sdk/
 │   ├── base.py                     # Middleware ABC & MiddlewarePipeline
 │   ├── logging_mw.py               # Structured logging
 │   ├── cost_tracker.py             # Cost tracking & budgets
-│   ├── retry.py                    # Retry with exponential backoff
 │   ├── rate_limit.py               # Rate limit handling
 │   ├── tracing.py                  # OpenTelemetry tracing & metrics
 │   └── guardrails.py               # Content safety filtering
@@ -182,8 +182,7 @@ curio_agent_sdk/
 ├── testing/                        # Testing utilities
 │   ├── mock_llm.py                 # MockLLM, text_response, tool_call_response
 │   └── harness.py                  # AgentTestHarness
-└── config/
-    └── settings.py                 # AgentConfig, DatabaseConfig
+└── config/                         # Minimal stub (see roadmap)
 ```
 
 ## Core Concepts
@@ -248,7 +247,7 @@ agent = Agent(
 
 ```python
 from curio_agent_sdk import (
-    LoggingMiddleware, CostTracker, RetryMiddleware,
+    LoggingMiddleware, CostTracker,
     TracingMiddleware, GuardrailsMiddleware,
 )
 
@@ -256,7 +255,6 @@ agent = Agent(
     middleware=[
         LoggingMiddleware(),
         CostTracker(budget=1.00),
-        RetryMiddleware(max_retries=3),
         TracingMiddleware(service_name="my-agent"),
         GuardrailsMiddleware(
             block_patterns=[r"(?i)password", r"(?i)secret"],
@@ -270,13 +268,15 @@ agent = Agent(
 ### Memory
 
 ```python
-from curio_agent_sdk import ConversationMemory, CompositeMemory, KeyValueMemory
+from curio_agent_sdk import ConversationMemory, CompositeMemory, KeyValueMemory, MemoryManager
+
+memory = CompositeMemory({
+    "conversation": ConversationMemory(max_entries=50),
+    "knowledge": KeyValueMemory(),
+})
 
 agent = Agent(
-    memory=CompositeMemory({
-        "conversation": ConversationMemory(max_entries=50),
-        "knowledge": KeyValueMemory(),
-    }),
+    memory_manager=MemoryManager(memory=memory),
     ...
 )
 ```
@@ -314,18 +314,18 @@ assert harness.llm_calls == 2
 ### Checkpointing & Resume
 
 ```python
-from curio_agent_sdk import FileCheckpointStore
+from curio_agent_sdk import FileStateStore
 
 agent = Agent(
-    checkpoint_store=FileCheckpointStore("./checkpoints"),
+    state_store=FileStateStore("./state"),
     checkpoint_interval=1,
     ...
 )
 
-# Run (saves checkpoints)
+# Run (saves state)
 result = await agent.arun("Long task...")
 
-# Resume from checkpoint
+# Resume from saved state
 result = await agent.arun("Continue...", resume_from=result.run_id)
 ```
 

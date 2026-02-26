@@ -120,6 +120,7 @@ class TieredRouter:
     - Round-robin key rotation
     - Health tracking with automatic recovery
     - Configurable via env vars or programmatic API
+    - Retry/backoff configuration for rate limits
     """
 
     def __init__(
@@ -128,6 +129,9 @@ class TieredRouter:
         tier2: list[str] | None = None,
         tier3: list[str] | None = None,
         providers: dict[str, ProviderConfig] | None = None,
+        retry_delay: float = 1.0,
+        max_retry_delay: float = 30.0,
+        retry_on_rate_limit: bool = True,
     ):
         """
         Initialize the router.
@@ -137,11 +141,19 @@ class TieredRouter:
             tier2: List of "provider:model" strings for tier2 (balanced)
             tier3: List of "provider:model" strings for tier3 (high quality)
             providers: Pre-configured provider configs (otherwise loaded from env)
+            retry_delay: Base delay (seconds) for rate-limit backoff.
+            max_retry_delay: Maximum delay (seconds) for backoff.
+            retry_on_rate_limit: Whether to sleep before failover on rate limits.
         """
         self.providers: dict[str, ProviderConfig] = providers or {}
         self.tiers: dict[str, TierConfig] = {}
         self.key_health: dict[str, dict[str, KeyHealth]] = {}  # provider -> key_name -> health
         self._key_index: dict[str, int] = {}  # provider -> round-robin index
+
+        # Retry/backoff configuration used by LLMClient
+        self.retry_delay = retry_delay
+        self.max_retry_delay = max_retry_delay
+        self.retry_on_rate_limit = retry_on_rate_limit
 
         if not self.providers:
             self._load_providers_from_env()

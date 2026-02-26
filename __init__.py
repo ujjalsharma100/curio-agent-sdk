@@ -47,17 +47,10 @@ from curio_agent_sdk.models.llm import Message, ToolCall, TokenUsage, LLMRequest
 from curio_agent_sdk.models.agent import AgentRunResult, AgentRun, AgentRunStatus
 from curio_agent_sdk.models.events import EventType, StreamEvent, AgentEvent
 
-# Config
-from curio_agent_sdk.config.settings import AgentConfig, DatabaseConfig
-
-# Persistence
-from curio_agent_sdk.persistence.base import BasePersistence
-
 # Middleware
 from curio_agent_sdk.middleware.base import Middleware, MiddlewarePipeline
 from curio_agent_sdk.middleware.logging_mw import LoggingMiddleware
 from curio_agent_sdk.middleware.cost_tracker import CostTracker
-from curio_agent_sdk.middleware.retry import RetryMiddleware
 from curio_agent_sdk.middleware.rate_limit import RateLimitMiddleware
 from curio_agent_sdk.middleware.tracing import TracingMiddleware
 from curio_agent_sdk.middleware.guardrails import GuardrailsMiddleware, GuardrailsError
@@ -88,12 +81,12 @@ from curio_agent_sdk.memory.manager import (
     AdaptiveTokenQuery,
 )
 
-# Checkpointing
-from curio_agent_sdk.core.checkpoint import (
-    Checkpoint,
-    CheckpointStore,
-    InMemoryCheckpointStore,
-    FileCheckpointStore,
+# State persistence
+from curio_agent_sdk.core.checkpoint import Checkpoint
+from curio_agent_sdk.core.state_store import (
+    StateStore,
+    InMemoryStateStore,
+    FileStateStore,
 )
 
 # Exceptions
@@ -115,7 +108,7 @@ from curio_agent_sdk.exceptions import (
 from curio_agent_sdk.core.object_identifier_map import ObjectIdentifierMap
 from curio_agent_sdk.core.context import ContextManager
 
-__version__ = "0.4.0"
+__version__ = "0.6.0"
 
 __all__ = [
     # Core
@@ -151,17 +144,11 @@ __all__ = [
     "EventType",
     "StreamEvent",
     "AgentEvent",
-    # Config
-    "AgentConfig",
-    "DatabaseConfig",
-    # Persistence
-    "BasePersistence",
     # Middleware
     "Middleware",
     "MiddlewarePipeline",
     "LoggingMiddleware",
     "CostTracker",
-    "RetryMiddleware",
     "RateLimitMiddleware",
     "TracingMiddleware",
     "GuardrailsMiddleware",
@@ -191,11 +178,11 @@ __all__ = [
     "DefaultQuery",
     "KeywordQuery",
     "AdaptiveTokenQuery",
-    # Checkpointing
+    # State persistence
     "Checkpoint",
-    "CheckpointStore",
-    "InMemoryCheckpointStore",
-    "FileCheckpointStore",
+    "StateStore",
+    "InMemoryStateStore",
+    "FileStateStore",
     # Exceptions
     "CurioError",
     "LLMError",

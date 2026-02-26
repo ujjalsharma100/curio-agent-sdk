@@ -23,7 +23,6 @@ Example:
 from curio_agent_sdk.middleware.base import Middleware, MiddlewarePipeline
 from curio_agent_sdk.middleware.logging_mw import LoggingMiddleware
 from curio_agent_sdk.middleware.cost_tracker import CostTracker
-from curio_agent_sdk.middleware.retry import RetryMiddleware
 from curio_agent_sdk.middleware.rate_limit import RateLimitMiddleware
 from curio_agent_sdk.middleware.tracing import TracingMiddleware
 from curio_agent_sdk.middleware.guardrails import GuardrailsMiddleware, GuardrailsError
@@ -33,7 +32,6 @@ __all__ = [
     "MiddlewarePipeline",
     "LoggingMiddleware",
     "CostTracker",
-    "RetryMiddleware",
     "RateLimitMiddleware",
     "TracingMiddleware",
     "GuardrailsMiddleware",
