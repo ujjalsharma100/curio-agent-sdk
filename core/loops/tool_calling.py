@@ -12,7 +12,7 @@ Used by: OpenAI Agents, Anthropic tool use, general-purpose agents.
 from __future__ import annotations
 
 import logging
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from curio_agent_sdk.core.loops.base import AgentLoop
 from curio_agent_sdk.core.state import AgentState
@@ -47,6 +47,7 @@ class ToolCallingLoop(AgentLoop):
         run_id: str | None = None,
         agent_id: str | None = None,
         parallel_tool_calls: bool = True,
+        response_format: type | dict[str, Any] | None = None,
     ):
         self.llm = llm
         self.tool_executor = tool_executor
@@ -56,6 +57,8 @@ class ToolCallingLoop(AgentLoop):
         self.run_id = run_id
         self.agent_id = agent_id
         self.parallel_tool_calls = parallel_tool_calls
+        # When set, request structured output (only applied when no tools to avoid API conflicts)
+        self.response_format: type | dict[str, Any] | None = response_format
 
     def _fit_messages(self, messages: list[Message], tools: list | None) -> list[Message]:
         """Apply context window management if a context_manager is set."""
@@ -81,7 +84,11 @@ class ToolCallingLoop(AgentLoop):
             tools=state.tool_schemas if state.tools else None,
         )
 
-        # Build request
+        # Build request; only add response_format when no tools (providers often disallow both)
+        response_format_dict = None
+        if self.response_format and not state.tool_schemas:
+            from curio_agent_sdk.core.structured_output import response_format_to_schema
+            response_format_dict = response_format_to_schema(self.response_format)
         request = LLMRequest(
             messages=fitted_messages,
             tools=state.tool_schemas if state.tools else None,
@@ -89,6 +96,7 @@ class ToolCallingLoop(AgentLoop):
             max_tokens=self.max_tokens,
             temperature=self.temperature,
             tier=self.tier,
+            response_format=response_format_dict,
         )
 
         # Call LLM
@@ -146,6 +154,10 @@ class ToolCallingLoop(AgentLoop):
             tools=state.tool_schemas if state.tools else None,
         )
 
+        response_format_dict = None
+        if self.response_format and not state.tool_schemas:
+            from curio_agent_sdk.core.structured_output import response_format_to_schema
+            response_format_dict = response_format_to_schema(self.response_format)
         request = LLMRequest(
             messages=fitted_messages,
             tools=state.tool_schemas if state.tools else None,
@@ -153,6 +165,7 @@ class ToolCallingLoop(AgentLoop):
             max_tokens=self.max_tokens,
             temperature=self.temperature,
             tier=self.tier,
+            response_format=response_format_dict,
         )
 
         # Accumulate the full response for state tracking

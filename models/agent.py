@@ -177,6 +177,7 @@ class AgentRunResult:
     """Complete result of an agent run, returned to the caller."""
     status: str  # "completed", "error", "cancelled", "timeout"
     output: str = ""
+    parsed_output: Any = None  # When response_format is used, validated Pydantic/list output
     total_iterations: int = 0
     total_llm_calls: int = 0
     total_tool_calls: int = 0
@@ -194,6 +195,7 @@ class AgentRunResult:
         return {
             "status": self.status,
             "output": self.output,
+            "parsed_output": self.parsed_output,
             "total_iterations": self.total_iterations,
             "total_llm_calls": self.total_llm_calls,
             "total_tool_calls": self.total_tool_calls,

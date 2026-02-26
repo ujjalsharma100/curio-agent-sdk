@@ -101,6 +101,8 @@ class OllamaProvider(LLMProvider):
             if request.tools:
                 params["tools"] = [t.to_openai_format() for t in request.tools]
 
+            if request.response_format:
+                params["response_format"] = request.response_format
             if request.stop:
                 params["stop"] = request.stop
 

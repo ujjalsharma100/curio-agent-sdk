@@ -109,6 +109,8 @@ class GroqProvider(LLMProvider):
                     if isinstance(request.tool_choice, str):
                         params["tool_choice"] = request.tool_choice
 
+            if request.response_format:
+                params["response_format"] = request.response_format
             if request.stop:
                 params["stop"] = request.stop
 

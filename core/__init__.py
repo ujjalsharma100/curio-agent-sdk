@@ -29,6 +29,10 @@ from curio_agent_sdk.core.plan_mode import (
     PlanMode,
     get_plan_mode_tools,
 )
+from curio_agent_sdk.core.structured_output import (
+    response_format_to_schema,
+    parse_structured_output,
+)
 
 __all__ = [
     "Agent",
@@ -60,4 +64,6 @@ __all__ = [
     "TodoManager",
     "PlanMode",
     "get_plan_mode_tools",
+    "response_format_to_schema",
+    "parse_structured_output",
 ]

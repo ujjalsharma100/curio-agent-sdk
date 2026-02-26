@@ -352,6 +352,7 @@ class Agent:
         timeout: float | None = None,
         resume_from: str | None = None,
         active_skills: list[str] | None = None,
+        response_format: type | dict[str, Any] | None = None,
     ) -> AgentRunResult:
         """
         Run the agent asynchronously.
@@ -362,9 +363,11 @@ class Agent:
             max_iterations: Override max iterations for this run.
             timeout: Override timeout for this run (seconds).
             resume_from: Optional run_id to resume from saved state.
+            response_format: Optional Pydantic model or list[Model] for structured
+                output; result.parsed_output will hold the validated instance(s).
 
         Returns:
-            AgentRunResult with status, output, and metrics.
+            AgentRunResult with status, output, and metrics (and parsed_output if response_format used).
         """
         return await self.runtime.run(
             input,
@@ -375,6 +378,7 @@ class Agent:
             timeout=timeout,
             resume_from=resume_from,
             active_skills=active_skills,
+            response_format=response_format,
         )
 
     async def invoke_skill(
@@ -505,6 +509,7 @@ class Agent:
         timeout: float | None = None,
         resume_from: str | None = None,
         active_skills: list[str] | None = None,
+        response_format: type | dict[str, Any] | None = None,
     ) -> AgentRunResult:
         """
         Run the agent synchronously. Convenience wrapper around arun().
@@ -515,6 +520,7 @@ class Agent:
             max_iterations: Override max iterations.
             timeout: Override timeout (seconds).
             resume_from: Optional run_id to resume from saved state.
+            response_format: Optional Pydantic model or list[Model] for structured output.
 
         Returns:
             AgentRunResult with status, output, and metrics.
@@ -525,11 +531,29 @@ class Agent:
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 future = pool.submit(
                     asyncio.run,
-                    self.arun(input, context, max_iterations, timeout, resume_from, active_skills),
+                    self.arun(
+                        input,
+                        context=context,
+                        max_iterations=max_iterations,
+                        timeout=timeout,
+                        resume_from=resume_from,
+                        active_skills=active_skills,
+                        response_format=response_format,
+                    ),
                 )
                 return future.result()
         except RuntimeError:
-            return asyncio.run(self.arun(input, context, max_iterations, timeout, resume_from, active_skills))
+            return asyncio.run(
+                self.arun(
+                    input,
+                    context=context,
+                    max_iterations=max_iterations,
+                    timeout=timeout,
+                    resume_from=resume_from,
+                    active_skills=active_skills,
+                    response_format=response_format,
+                )
+            )
 
     # ── Component lifecycle ────────────────────────────────────────
 

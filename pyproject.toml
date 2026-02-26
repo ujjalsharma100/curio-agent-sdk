@@ -33,11 +33,13 @@ anthropic = ["anthropic>=0.40.0"]
 groq = ["openai>=1.0.0", "tiktoken>=0.5.0"]  # Groq uses OpenAI-compatible client
 ollama = ["openai>=1.0.0"]  # Ollama uses OpenAI-compatible client
 postgres = ["psycopg2-binary>=2.9.0"]
+structured = ["pydantic>=2.0.0"]  # For response_format with Pydantic models
 all = [
     "openai>=1.0.0",
     "anthropic>=0.40.0",
     "tiktoken>=0.5.0",
     "psycopg2-binary>=2.9.0",
+    "pydantic>=2.0.0",
 ]
 dev = [
     "pytest>=7.0.0",

@@ -89,6 +89,12 @@ from curio_agent_sdk.memory.manager import (
     AdaptiveTokenQuery,
 )
 
+# Structured output
+from curio_agent_sdk.core.structured_output import (
+    response_format_to_schema,
+    parse_structured_output,
+)
+
 # State persistence
 from curio_agent_sdk.core.checkpoint import Checkpoint
 from curio_agent_sdk.core.state_store import (
@@ -246,6 +252,9 @@ __all__ = [
     "TodoManager",
     "PlanMode",
     "get_plan_mode_tools",
+    # Structured output
+    "response_format_to_schema",
+    "parse_structured_output",
     # Utilities
     "ObjectIdentifierMap",
     "ContextManager",

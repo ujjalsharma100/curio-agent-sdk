@@ -129,6 +129,21 @@ class AnthropicProvider(LLMProvider):
         if request.stop:
             params["stop_sequences"] = request.stop
 
+        # Structured output (JSON schema or json_object)
+        if request.response_format:
+            rf = request.response_format
+            if rf.get("type") == "json_schema" and "json_schema" in rf:
+                # OpenAI-style -> Anthropic output_config
+                js = rf["json_schema"]
+                params["output_config"] = {
+                    "format": {
+                        "type": "json_schema",
+                        "schema": js.get("schema", js),
+                    }
+                }
+            elif rf.get("type") == "json_object":
+                params["output_config"] = {"format": {"type": "json_object"}}
+
         return params
 
     def _parse_response(self, response, model: str, latency_ms: int) -> LLMResponse:

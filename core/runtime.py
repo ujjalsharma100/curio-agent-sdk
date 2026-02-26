@@ -497,6 +497,7 @@ class Runtime:
         timeout: float | None = None,
         resume_from: str | None = None,
         active_skills: list[str] | None = None,
+        response_format: type | dict[str, Any] | None = None,
     ) -> AgentRunResult:
         """
         Run the agent loop to completion.
@@ -554,11 +555,13 @@ class Runtime:
         if max_iterations:
             state.max_iterations = max_iterations
 
-        # Set run_id/agent_id on loop if supported
+        # Set run_id/agent_id and optional response_format on loop if supported
         if hasattr(self.loop, 'run_id'):
             self.loop.run_id = run_id
         if hasattr(self.loop, 'agent_id'):
             self.loop.agent_id = agent_id
+        if hasattr(self.loop, 'response_format'):
+            self.loop.response_format = response_format
 
         await self._emit_hook(
             AGENT_RUN_BEFORE,
@@ -660,6 +663,15 @@ class Runtime:
         else:
             output = self.loop.get_output(state)
 
+        # Parse structured output when response_format was requested
+        parsed_output = None
+        if response_format and output:
+            try:
+                from curio_agent_sdk.core.structured_output import parse_structured_output
+                parsed_output = parse_structured_output(output, response_format)
+            except Exception as e:
+                logger.debug("Structured output parse failed (output left as raw text): %s", e)
+
         # Save to memory via MemoryManager
         await self.save_to_memory(state, input, output, run_id=run_id, agent_id=agent_id)
 
@@ -675,6 +687,7 @@ class Runtime:
         return AgentRunResult(
             status="completed",
             output=output,
+            parsed_output=parsed_output,
             total_iterations=state.iteration,
             total_llm_calls=state.total_llm_calls,
             total_tool_calls=state.total_tool_calls,
