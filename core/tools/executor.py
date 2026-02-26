@@ -22,6 +22,7 @@ from curio_agent_sdk.exceptions import ToolError, ToolNotFoundError
 if TYPE_CHECKING:
     from curio_agent_sdk.core.human_input import HumanInputHandler
     from curio_agent_sdk.core.hooks import HookRegistry
+    from curio_agent_sdk.core.permissions import PermissionPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -85,10 +86,12 @@ class ToolExecutor:
         registry: ToolRegistry,
         human_input: HumanInputHandler | None = None,
         hook_registry: HookRegistry | None = None,
+        permission_policy: PermissionPolicy | None = None,
     ):
         self.registry = registry
         self.human_input = human_input
         self.hook_registry = hook_registry
+        self.permission_policy = permission_policy
         self._cache: dict[str, _CacheEntry] = {}
         # Set by the loop before each step for hook context
         self.run_id: str = ""
@@ -149,7 +152,33 @@ class ToolExecutor:
         try:
             tool = self.registry.get(tool_name)
 
-            # Human-in-the-loop confirmation
+            # Permission policy check
+            if self.permission_policy:
+                perm_ctx = {
+                    "run_id": getattr(self, "run_id", "") or "",
+                    "agent_id": getattr(self, "agent_id", "") or "",
+                    "tool_call_id": tool_call.id,
+                    "tool_config": tool.config,
+                }
+                perm_result = await self.permission_policy.check_tool_call(tool_name, args, perm_ctx)
+                if not perm_result.allowed:
+                    return ToolResult(
+                        tool_call_id=tool_call.id,
+                        tool_name=tool_name,
+                        result=None,
+                        error=f"Permission denied: {perm_result.reason or 'not allowed'}",
+                    )
+                if perm_result.ask_user and self.human_input:
+                    confirmed = await self.human_input.confirm_tool_call(tool_name, args)
+                    if not confirmed:
+                        return ToolResult(
+                            tool_call_id=tool_call.id,
+                            tool_name=tool_name,
+                            result=None,
+                            error="Tool call denied by user",
+                        )
+
+            # Human-in-the-loop confirmation (per-tool require_confirmation)
             if tool.config.require_confirmation and self.human_input:
                 confirmed = await self.human_input.confirm_tool_call(tool_name, args)
                 if not confirmed:

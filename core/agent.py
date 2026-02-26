@@ -120,6 +120,9 @@ class Agent:
         # Human-in-the-loop
         human_input: Any | None = None,
 
+        # Permissions / sandbox (optional)
+        permission_policy: Any | None = None,
+
         # Memory
         memory_manager: MemoryManager | None = None,
 
@@ -253,6 +256,7 @@ class Agent:
             self.registry,
             human_input=human_input,
             hook_registry=self.hook_registry,
+            permission_policy=permission_policy,
         )
 
         # ── LLM Client ──────────────────────────────────────────────

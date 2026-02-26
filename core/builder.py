@@ -207,6 +207,18 @@ class AgentBuilder:
         self._config["human_input"] = handler
         return self
 
+    def permissions(self, policy: Any) -> AgentBuilder:
+        """
+        Set the permission policy (allow/deny/ask for tool execution, file and network access).
+
+        Example:
+            from curio_agent_sdk.core.permissions import AllowReadsAskWrites, AllowAll
+            .permissions(AllowReadsAskWrites())
+            .permissions(AllowAll())
+        """
+        self._config["permission_policy"] = policy
+        return self
+
     # ── State persistence ───────────────────────────────────────────
 
     def state_store(self, store: StateStore) -> AgentBuilder:

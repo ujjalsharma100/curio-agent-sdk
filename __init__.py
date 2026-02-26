@@ -65,6 +65,18 @@ from curio_agent_sdk.middleware.guardrails import GuardrailsMiddleware, Guardrai
 # Human-in-the-loop
 from curio_agent_sdk.core.human_input import HumanInputHandler, CLIHumanInput
 
+# Permissions / sandbox
+from curio_agent_sdk.core.permissions import (
+    PermissionResult,
+    PermissionPolicy,
+    AllowAll,
+    AskAlways,
+    AllowReadsAskWrites,
+    CompoundPolicy,
+    FileSandboxPolicy,
+    NetworkSandboxPolicy,
+)
+
 # Memory
 from curio_agent_sdk.memory.base import Memory, MemoryEntry
 from curio_agent_sdk.memory.conversation import ConversationMemory
@@ -222,6 +234,14 @@ __all__ = [
     # Human-in-the-loop
     "HumanInputHandler",
     "CLIHumanInput",
+    "PermissionResult",
+    "PermissionPolicy",
+    "AllowAll",
+    "AskAlways",
+    "AllowReadsAskWrites",
+    "CompoundPolicy",
+    "FileSandboxPolicy",
+    "NetworkSandboxPolicy",
     # Memory
     "Memory",
     "MemoryEntry",

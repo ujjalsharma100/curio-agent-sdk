@@ -41,6 +41,16 @@ from curio_agent_sdk.core.task_manager import (
     TaskStatus,
     TaskInfo,
 )
+from curio_agent_sdk.core.permissions import (
+    PermissionResult,
+    PermissionPolicy,
+    AllowAll,
+    AskAlways,
+    AllowReadsAskWrites,
+    CompoundPolicy,
+    FileSandboxPolicy,
+    NetworkSandboxPolicy,
+)
 
 __all__ = [
     "Agent",
@@ -79,4 +89,12 @@ __all__ = [
     "TaskManager",
     "TaskStatus",
     "TaskInfo",
+    "PermissionResult",
+    "PermissionPolicy",
+    "AllowAll",
+    "AskAlways",
+    "AllowReadsAskWrites",
+    "CompoundPolicy",
+    "FileSandboxPolicy",
+    "NetworkSandboxPolicy",
 ]
