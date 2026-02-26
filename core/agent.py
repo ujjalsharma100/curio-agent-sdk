@@ -139,6 +139,9 @@ class Agent:
         # Skills (bundled tools + prompts + hooks; optional)
         skill_registry: SkillRegistry | None = None,
         skills: list[Skill] | None = None,
+
+        # Subagent / multi-agent (optional)
+        subagent_configs: dict[str, Any] | None = None,
     ):
         # ── Resolve instructions (direct construction) ─────────────────
         base_prompt = system_prompt
@@ -182,6 +185,26 @@ class Agent:
                     self.registry.register(t)
                 for event, handler, priority in skill.hooks:
                     self.hook_registry.on(event, handler, priority=priority)
+        # ── Subagent orchestrator (optional) ─────────────────────────
+        self.orchestrator = None
+        if subagent_configs:
+            from curio_agent_sdk.core.subagent import AgentOrchestrator, SubagentConfig
+            self.orchestrator = AgentOrchestrator(self)
+            for name, cfg in subagent_configs.items():
+                if not isinstance(cfg, SubagentConfig):
+                    cfg = SubagentConfig(name=name, system_prompt=cfg.get("system_prompt", ""), tools=cfg.get("tools", []), model=cfg.get("model"), inherit_memory=cfg.get("inherit_memory", False), inherit_tools=cfg.get("inherit_tools", False), max_iterations=cfg.get("max_iterations", 10), timeout=cfg.get("timeout"))
+                self.orchestrator.register(name, cfg)
+            from curio_agent_sdk.core.tools.tool import tool
+            orchestrator = self.orchestrator
+
+            @tool
+            async def spawn_subagent(task: str, agent_type: str = "general") -> str:
+                """Spawn a subagent to handle a complex subtask. agent_type must be a registered subagent name."""
+                result = await orchestrator.spawn(agent_type, task)
+                return result.output or result.error or ""
+
+            self.registry.register(spawn_subagent)
+
         self.executor = ToolExecutor(
             self.registry,
             human_input=human_input,
@@ -352,6 +375,68 @@ class Agent:
             timeout=timeout,
             active_skills=[name],
         )
+
+    # ── Subagent / multi-agent ───────────────────────────────────────
+
+    async def spawn_subagent(
+        self,
+        config: str | Any,
+        task: str,
+        context: dict[str, Any] | None = None,
+        max_iterations: int | None = None,
+        timeout: float | None = None,
+    ) -> AgentRunResult:
+        """
+        Spawn a subagent with the given config (or registered name), run it on task, return result.
+
+        Requires subagent_configs to have been provided at build time (or orchestrator set).
+        """
+        if self.orchestrator is None:
+            raise RuntimeError("No orchestrator: pass subagent_configs when building the agent.")
+        return await self.orchestrator.spawn(config, task, context=context, max_iterations=max_iterations, timeout=timeout)
+
+    async def spawn_subagent_background(
+        self,
+        config: str | Any,
+        task: str,
+        context: dict[str, Any] | None = None,
+        max_iterations: int | None = None,
+        timeout: float | None = None,
+    ) -> str:
+        """Spawn a subagent in the background. Returns task_id; use get_subagent_result(task_id) to get the result."""
+        if self.orchestrator is None:
+            raise RuntimeError("No orchestrator: pass subagent_configs when building the agent.")
+        return await self.orchestrator.spawn_background(config, task, context=context, max_iterations=max_iterations, timeout=timeout)
+
+    async def get_subagent_result(self, task_id: str) -> AgentRunResult | None:
+        """Return the result of a background subagent run if completed, else None."""
+        if self.orchestrator is None:
+            return None
+        return await self.orchestrator.get_result(task_id)
+
+    async def handoff(
+        self,
+        target: "Agent",
+        context: str,
+        parent_messages: list | None = None,
+        agent_id: str = "",
+        run_id: str | None = None,
+    ) -> AgentRunResult:
+        """Hand off the conversation to another agent. Optionally pass parent message history."""
+        if self.orchestrator is not None:
+            return await self.orchestrator.handoff(target, context, parent_messages=parent_messages, agent_id=agent_id, run_id=run_id)
+        if parent_messages is None or len(parent_messages) == 0:
+            return await target.arun(context)
+        from curio_agent_sdk.core.state import AgentState
+        from curio_agent_sdk.models.llm import Message
+        messages = list(parent_messages) + [Message.user(context)]
+        state = AgentState(
+            messages=messages,
+            tools=target.registry.tools,
+            tool_schemas=target.registry.get_llm_schemas(),
+            max_iterations=getattr(target, "max_iterations", 25),
+        )
+        return await target.runtime.run_with_state(state, agent_id=agent_id or target.agent_id, run_id=run_id)
 
     async def astream(
         self,

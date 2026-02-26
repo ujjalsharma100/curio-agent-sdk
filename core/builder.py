@@ -27,6 +27,9 @@ from curio_agent_sdk.core.tools.tool import Tool
 from curio_agent_sdk.core.skills import Skill
 
 if TYPE_CHECKING:
+    from curio_agent_sdk.core.subagent import SubagentConfig
+
+if TYPE_CHECKING:
     from curio_agent_sdk.core.agent import Agent
     from curio_agent_sdk.core.loops.base import AgentLoop
     from curio_agent_sdk.core.context import ContextManager
@@ -283,6 +286,25 @@ class AgentBuilder:
     def skills(self, skills: list[Skill]) -> AgentBuilder:
         """Register multiple skills. Replaces any previously set skills."""
         self._config["skills"] = list(skills)
+        return self
+
+    # ── Subagent / multi-agent ──────────────────────────────────────
+
+    def subagent(self, name: str, config: "SubagentConfig | dict[str, Any]") -> AgentBuilder:
+        """
+        Register a subagent config by name. The parent agent can spawn it via spawn_subagent(name, task).
+
+        Example:
+            .subagent("researcher", SubagentConfig(
+                name="researcher",
+                system_prompt="Research specialist.",
+                tools=[web_search, fetch_page],
+                model="openai:gpt-4o",
+            ))
+        """
+        if "subagent_configs" not in self._config:
+            self._config["subagent_configs"] = {}
+        self._config["subagent_configs"][name] = config
         return self
 
     # ── Build ───────────────────────────────────────────────────────

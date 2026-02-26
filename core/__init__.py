@@ -18,6 +18,7 @@ from curio_agent_sdk.core.instructions import (
     load_instructions_from_file,
 )
 from curio_agent_sdk.core.skills import Skill, SkillRegistry, get_active_skill_prompts
+from curio_agent_sdk.core.subagent import SubagentConfig, AgentOrchestrator
 
 __all__ = [
     "Agent",
@@ -39,4 +40,6 @@ __all__ = [
     "Skill",
     "SkillRegistry",
     "get_active_skill_prompts",
+    "SubagentConfig",
+    "AgentOrchestrator",
 ]
