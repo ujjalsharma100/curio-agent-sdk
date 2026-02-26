@@ -167,6 +167,12 @@ from curio_agent_sdk.mcp import (
     load_mcp_servers_from_file,
     resolve_env_in_config,
 )
+from curio_agent_sdk.connectors import (
+    Connector,
+    ConnectorResource,
+    ConnectorBridge,
+    resolve_credentials,
+)
 
 __version__ = "0.6.0"
 
@@ -311,6 +317,11 @@ __all__ = [
     "MCPServerConfig",
     "load_mcp_servers_from_file",
     "resolve_env_in_config",
+    # Connector framework
+    "Connector",
+    "ConnectorResource",
+    "ConnectorBridge",
+    "resolve_credentials",
     # Structured output
     "response_format_to_schema",
     "parse_structured_output",

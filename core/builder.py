@@ -393,6 +393,28 @@ class AgentBuilder:
         self._config["mcp_resource_uris"] = list(resource_uris)
         return self
 
+    # ── Connector framework ──────────────────────────────────────────
+
+    def connector(self, connector: Any) -> AgentBuilder:
+        """
+        Add a connector (external service integration). Tools are registered at agent startup.
+
+        Example:
+            .connector(GitHubConnector(token="ghp_..."))
+            .connector(SlackConnector(token="xoxb-..."))
+        """
+        if "connectors" not in self._config:
+            self._config["connectors"] = []
+        self._config["connectors"].append(connector)
+        return self
+
+    def connectors(self, connectors: list[Any]) -> AgentBuilder:
+        """Add multiple connectors at once."""
+        if "connectors" not in self._config:
+            self._config["connectors"] = []
+        self._config["connectors"].extend(connectors)
+        return self
+
     # ── Subagent / multi-agent ──────────────────────────────────────
 
     def subagent(self, name: str, config: "SubagentConfig | dict[str, Any]") -> AgentBuilder:
@@ -459,6 +481,9 @@ class AgentBuilder:
         config.setdefault("mcp_server_urls", None)
         config.setdefault("mcp_server_configs", None)
         config.setdefault("mcp_resource_uris", None)
+
+        # Connectors (optional)
+        config.setdefault("connectors", None)
 
         return Agent(**config)
 

@@ -155,6 +155,9 @@ class Agent:
         mcp_server_urls: list[str] | None = None,
         mcp_server_configs: list[dict | Any] | None = None,
         mcp_resource_uris: list[str] | None = None,
+
+        # Connector framework (optional)
+        connectors: list[Any] | None = None,
     ):
         # ── Resolve instructions (direct construction) ─────────────────
         base_prompt = system_prompt
@@ -317,6 +320,15 @@ class Agent:
                 resource_uris=mcp_resource_uris,
             )
 
+        # ── Connector bridge (optional): connects at startup, registers tools ──
+        connector_bridge = None
+        if connectors:
+            from curio_agent_sdk.connectors.bridge import ConnectorBridge
+            connector_bridge = ConnectorBridge(
+                connectors=list(connectors),
+                tool_registry=self.registry,
+            )
+
         # ── Build Runtime ───────────────────────────────────────────
         self.runtime = Runtime(
             loop=self.loop,
@@ -338,6 +350,7 @@ class Agent:
             todo_manager=getattr(self, "todo_manager", None),
             session_manager=session_manager,
             mcp_bridge=mcp_bridge,
+            connector_bridge=connector_bridge,
         )
         self.session_manager = session_manager
 
