@@ -38,11 +38,13 @@ from curio_agent_sdk.core.tools.executor import ToolExecutor
 from curio_agent_sdk.models.llm import Message
 from curio_agent_sdk.models.agent import AgentRunResult
 from curio_agent_sdk.models.events import AgentEvent, EventType, StreamEvent
+from curio_agent_sdk.core.skills import get_active_skill_prompts
 
 if TYPE_CHECKING:
     from curio_agent_sdk.memory.manager import MemoryManager
     from curio_agent_sdk.core.state_store import StateStore
     from curio_agent_sdk.llm.client import LLMClient
+    from curio_agent_sdk.core.skills import SkillRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +177,9 @@ class Runtime:
         # Hooks & callbacks
         hook_registry: HookRegistry | None = None,
         on_event: Callable[[AgentEvent], None] | None = None,
+
+        # Skills (for activate/deactivate and prompt injection)
+        skill_registry: SkillRegistry | None = None,
     ):
         self.loop = loop
         self.llm = llm
@@ -189,6 +194,7 @@ class Runtime:
         self.state_store = state_store
         self.checkpoint_interval = checkpoint_interval
         self.on_event = on_event
+        self.skill_registry = skill_registry
 
         # Hook registry: primary lifecycle mechanism; event emission goes through it
         self.hook_registry = hook_registry if hook_registry is not None else HookRegistry()
@@ -302,6 +308,16 @@ class Runtime:
     def clear_extra_instructions(self) -> None:
         """Clear any dynamically added instructions."""
         self.extra_instructions.clear()
+
+    def _inject_active_skill_prompts(self, state: AgentState) -> None:
+        """Inject active skill prompts into the first system message."""
+        extra = get_active_skill_prompts(state)
+        if not extra or not state.messages:
+            return
+        first = state.messages[0]
+        if first.role == "system":
+            combined = (first.text or "") + "\n\n---\n\n" + extra
+            state.messages[0] = Message.system(combined)
 
     # ── Memory (delegates to MemoryManager) ─────────────────────────
 
@@ -472,6 +488,7 @@ class Runtime:
         max_iterations: int | None = None,
         timeout: float | None = None,
         resume_from: str | None = None,
+        active_skills: list[str] | None = None,
     ) -> AgentRunResult:
         """
         Run the agent loop to completion.
@@ -512,6 +529,12 @@ class Runtime:
         if state is None:
             state = self.create_state(input, context)
             await self.inject_memory_context(state, input, run_id=run_id, agent_id=agent_id)
+
+        # Activate requested skills (add tools + record prompts for injection)
+        if active_skills and self.skill_registry:
+            for name in active_skills:
+                self.skill_registry.activate(name, state)
+        self._inject_active_skill_prompts(state)
 
         if max_iterations:
             state.max_iterations = max_iterations
@@ -670,6 +693,8 @@ class Runtime:
         run_id = run_id or str(uuid.uuid4())
 
         await self._ensure_components_started()
+
+        self._inject_active_skill_prompts(state)
 
         if hasattr(self.loop, 'run_id'):
             self.loop.run_id = run_id

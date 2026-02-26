@@ -119,6 +119,7 @@ from curio_agent_sdk.core.instructions import (
     InstructionLoader,
     load_instructions_from_file,
 )
+from curio_agent_sdk.core.skills import Skill, SkillRegistry, get_active_skill_prompts
 
 __version__ = "0.6.0"
 
@@ -218,6 +219,10 @@ __all__ = [
     # Rules / instructions
     "InstructionLoader",
     "load_instructions_from_file",
+    # Skills
+    "Skill",
+    "SkillRegistry",
+    "get_active_skill_prompts",
     # Utilities
     "ObjectIdentifierMap",
     "ContextManager",

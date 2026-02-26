@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Callable, TYPE_CHECKING
 
 from curio_agent_sdk.core.tools.tool import Tool
+from curio_agent_sdk.core.skills import Skill
 
 if TYPE_CHECKING:
     from curio_agent_sdk.core.agent import Agent
@@ -270,6 +271,20 @@ class AgentBuilder:
         self._config["on_event"] = callback
         return self
 
+    # ── Skills ───────────────────────────────────────────────────────
+
+    def skill(self, skill: Skill) -> AgentBuilder:
+        """Register a single skill (bundled tools + prompt + hooks)."""
+        if "skills" not in self._config:
+            self._config["skills"] = []
+        self._config["skills"].append(skill)
+        return self
+
+    def skills(self, skills: list[Skill]) -> AgentBuilder:
+        """Register multiple skills. Replaces any previously set skills."""
+        self._config["skills"] = list(skills)
+        return self
+
     # ── Build ───────────────────────────────────────────────────────
 
     def build(self) -> Agent:
@@ -306,6 +321,12 @@ class AgentBuilder:
         if resolved_instructions:
             base = config.get("system_prompt") or "You are a helpful assistant."
             config["system_prompt"] = f"{base}\n\n---\n\n{resolved_instructions}"
+
+        # Pass skills list to Agent (Agent will create SkillRegistry and merge tools/hooks)
+        if "skills" in config and not config.get("skill_registry"):
+            config["skills"] = config.pop("skills", [])
+        else:
+            config.pop("skills", None)
 
         return Agent(**config)
 

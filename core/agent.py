@@ -26,6 +26,7 @@ from typing import Any, AsyncIterator, Callable, TYPE_CHECKING
 from curio_agent_sdk.core.builder import AgentBuilder
 from curio_agent_sdk.core.context import ContextManager
 from curio_agent_sdk.core.hooks import HookRegistry
+from curio_agent_sdk.core.skills import Skill, SkillRegistry
 from curio_agent_sdk.core.loops.base import AgentLoop
 from curio_agent_sdk.core.loops.tool_calling import ToolCallingLoop
 from curio_agent_sdk.core.runtime import Runtime
@@ -134,6 +135,10 @@ class Agent:
         # Hooks & callbacks
         hook_registry: HookRegistry | None = None,
         on_event: Callable[[AgentEvent], None] | None = None,
+
+        # Skills (bundled tools + prompts + hooks; optional)
+        skill_registry: SkillRegistry | None = None,
+        skills: list[Skill] | None = None,
     ):
         # ── Resolve instructions (direct construction) ─────────────────
         base_prompt = system_prompt
@@ -159,10 +164,24 @@ class Agent:
         # ── Hooks (lifecycle system; on_event is legacy, wired via adapter in Runtime) ──
         self.hook_registry = hook_registry if hook_registry is not None else HookRegistry()
 
+        # ── Skills (build registry from list if provided) ───────────
+        self.skill_registry = skill_registry
+        if skills:
+            if self.skill_registry is None:
+                self.skill_registry = SkillRegistry()
+            for s in skills:
+                self.skill_registry.register(s)
+
         # ── Tools ───────────────────────────────────────────────────
         self.registry = ToolRegistry()
         for t in (tools or []):
             self.registry.register(t)
+        if self.skill_registry:
+            for skill in self.skill_registry.list():
+                for t in skill.tools:
+                    self.registry.register(t)
+                for event, handler, priority in skill.hooks:
+                    self.hook_registry.on(event, handler, priority=priority)
         self.executor = ToolExecutor(
             self.registry,
             human_input=human_input,
@@ -239,6 +258,7 @@ class Agent:
             checkpoint_interval=checkpoint_interval,
             hook_registry=self.hook_registry,
             on_event=on_event,
+            skill_registry=self.skill_registry,
         )
 
         # Expose the resolved memory_manager from runtime
@@ -273,6 +293,7 @@ class Agent:
         max_iterations: int | None = None,
         timeout: float | None = None,
         resume_from: str | None = None,
+        active_skills: list[str] | None = None,
     ) -> AgentRunResult:
         """
         Run the agent asynchronously.
@@ -295,6 +316,41 @@ class Agent:
             max_iterations=max_iterations,
             timeout=timeout,
             resume_from=resume_from,
+            active_skills=active_skills,
+        )
+
+    async def invoke_skill(
+        self,
+        name: str,
+        input: str,
+        context: dict[str, Any] | None = None,
+        max_iterations: int | None = None,
+        timeout: float | None = None,
+    ) -> AgentRunResult:
+        """
+        Run the agent with a single skill active (tools + prompt for that skill).
+
+        Equivalent to arun(input, active_skills=[name], ...). Use when you want
+        to scope the run to one skill (e.g. "commit", "review-pr").
+
+        Args:
+            name: Skill name (must be registered on this agent).
+            input: User input / task for this skill.
+            context: Optional additional context dict.
+            max_iterations: Override max iterations.
+            timeout: Override timeout (seconds).
+
+        Returns:
+            AgentRunResult with status, output, and metrics.
+        """
+        if self.skill_registry is None or self.skill_registry.get(name) is None:
+            raise ValueError(f"Unknown skill: {name}. Registered skills: {self.skill_registry.list_names() if self.skill_registry else []}")
+        return await self.arun(
+            input,
+            context=context,
+            max_iterations=max_iterations,
+            timeout=timeout,
+            active_skills=[name],
         )
 
     async def astream(
@@ -328,6 +384,7 @@ class Agent:
         max_iterations: int | None = None,
         timeout: float | None = None,
         resume_from: str | None = None,
+        active_skills: list[str] | None = None,
     ) -> AgentRunResult:
         """
         Run the agent synchronously. Convenience wrapper around arun().
@@ -348,11 +405,11 @@ class Agent:
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 future = pool.submit(
                     asyncio.run,
-                    self.arun(input, context, max_iterations, timeout, resume_from),
+                    self.arun(input, context, max_iterations, timeout, resume_from, active_skills),
                 )
                 return future.result()
         except RuntimeError:
-            return asyncio.run(self.arun(input, context, max_iterations, timeout, resume_from))
+            return asyncio.run(self.arun(input, context, max_iterations, timeout, resume_from, active_skills))
 
     # ── Component lifecycle ────────────────────────────────────────
 
