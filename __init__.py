@@ -146,6 +146,8 @@ from curio_agent_sdk.core.task_manager import (
     TaskStatus,
     TaskInfo,
 )
+from curio_agent_sdk.tools.computer_use import ComputerUseToolkit
+from curio_agent_sdk.tools.browser import BrowserToolkit
 from curio_agent_sdk.mcp import (
     MCPClient,
     MCPToolAdapter,
@@ -277,6 +279,9 @@ __all__ = [
     "TaskManager",
     "TaskStatus",
     "TaskInfo",
+    # Computer use & browser
+    "ComputerUseToolkit",
+    "BrowserToolkit",
     # MCP (Model Context Protocol)
     "MCPClient",
     "MCPToolAdapter",
