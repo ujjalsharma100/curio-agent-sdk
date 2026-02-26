@@ -1,7 +1,6 @@
 """
 Configuration module for Curio Agent SDK.
+
+Configuration is handled via Agent constructor args, AgentBuilder,
+and environment variables. No config classes needed.
 """
-
-from curio_agent_sdk.config.settings import AgentConfig, DatabaseConfig
-
-__all__ = ["AgentConfig", "DatabaseConfig"]

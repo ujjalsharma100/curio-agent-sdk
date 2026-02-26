@@ -1,0 +1,250 @@
+"""
+Fluent builder for constructing Agent instances.
+
+Provides an ergonomic API for configuring all agent components
+while keeping the constructor clean.
+
+Example:
+    agent = Agent.builder() \\
+        .model("openai:gpt-4o") \\
+        .system_prompt("You are a research assistant.") \\
+        .tools([search, fetch, analyze]) \\
+        .memory_manager(MemoryManager(memory=ConversationMemory())) \\
+        .middleware([LoggingMiddleware(), CostTracker(budget=1.0)]) \\
+        .max_iterations(25) \\
+        .timeout(300) \\
+        .on_event(my_event_handler) \\
+        .build()
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any, Callable, TYPE_CHECKING
+
+from curio_agent_sdk.core.tools.tool import Tool
+
+if TYPE_CHECKING:
+    from curio_agent_sdk.core.agent import Agent
+    from curio_agent_sdk.core.loops.base import AgentLoop
+    from curio_agent_sdk.core.context import ContextManager
+    from curio_agent_sdk.core.state_store import StateStore
+    from curio_agent_sdk.core.human_input import HumanInputHandler
+    from curio_agent_sdk.llm.client import LLMClient
+    from curio_agent_sdk.middleware.base import Middleware
+    from curio_agent_sdk.models.events import AgentEvent
+
+logger = logging.getLogger(__name__)
+
+
+class AgentBuilder:
+    """
+    Fluent builder for constructing Agent instances.
+
+    All methods return self for chaining. Call build() to create the Agent.
+
+    Example:
+        agent = AgentBuilder() \\
+            .model("openai:gpt-4o") \\
+            .tools([search]) \\
+            .build()
+
+        # Or via Agent.builder():
+        agent = Agent.builder() \\
+            .model("anthropic:claude-sonnet-4-6") \\
+            .system_prompt("You are helpful.") \\
+            .tools([search, edit_file]) \\
+            .build()
+    """
+
+    def __init__(self):
+        self._config: dict[str, Any] = {}
+
+    # ── Core configuration ──────────────────────────────────────────
+
+    def system_prompt(self, prompt: str) -> AgentBuilder:
+        """Set the agent's system prompt."""
+        self._config["system_prompt"] = prompt
+        return self
+
+    def model(self, model_str: str) -> AgentBuilder:
+        """
+        Set the model using 'provider:model_name' shorthand.
+
+        Examples:
+            .model("openai:gpt-4o")
+            .model("anthropic:claude-sonnet-4-6")
+            .model("groq:llama-3.1-8b-instant")
+        """
+        self._config["model"] = model_str
+        return self
+
+    def tier(self, tier: str) -> AgentBuilder:
+        """Set the default tier for model routing ('tier1', 'tier2', 'tier3')."""
+        self._config["tier"] = tier
+        return self
+
+    def llm(self, client: LLMClient) -> AgentBuilder:
+        """Set a pre-configured LLMClient (overrides model/tier)."""
+        self._config["llm"] = client
+        return self
+
+    def loop(self, loop: AgentLoop) -> AgentBuilder:
+        """Set a custom agent loop (ToolCallingLoop, PlanCritiqueSynthesizeLoop, or custom)."""
+        self._config["loop"] = loop
+        return self
+
+    # ── Tools ───────────────────────────────────────────────────────
+
+    def tools(self, tools: list[Tool | Callable]) -> AgentBuilder:
+        """
+        Set the agent's tools. Replaces any previously set tools.
+
+        Args:
+            tools: List of Tool objects or @tool-decorated callables.
+        """
+        self._config["tools"] = list(tools)
+        return self
+
+    def add_tool(self, tool: Tool | Callable) -> AgentBuilder:
+        """Add a single tool to the agent's tool list."""
+        if "tools" not in self._config:
+            self._config["tools"] = []
+        self._config["tools"].append(tool)
+        return self
+
+    # ── Identity ────────────────────────────────────────────────────
+
+    def agent_id(self, id: str) -> AgentBuilder:
+        """Set the agent's unique ID."""
+        self._config["agent_id"] = id
+        return self
+
+    def agent_name(self, name: str) -> AgentBuilder:
+        """Set the agent's display name."""
+        self._config["agent_name"] = name
+        return self
+
+    # ── Limits ──────────────────────────────────────────────────────
+
+    def max_iterations(self, n: int) -> AgentBuilder:
+        """Set max loop iterations before stopping."""
+        self._config["max_iterations"] = n
+        return self
+
+    def timeout(self, seconds: float) -> AgentBuilder:
+        """Set total run timeout in seconds."""
+        self._config["timeout"] = seconds
+        return self
+
+    def iteration_timeout(self, seconds: float) -> AgentBuilder:
+        """Set per-iteration timeout in seconds."""
+        self._config["iteration_timeout"] = seconds
+        return self
+
+    def max_tokens(self, n: int) -> AgentBuilder:
+        """Set max output tokens per LLM call."""
+        self._config["max_tokens"] = n
+        return self
+
+    def temperature(self, t: float) -> AgentBuilder:
+        """Set LLM temperature."""
+        self._config["temperature"] = t
+        return self
+
+    # ── Context management ──────────────────────────────────────────
+
+    def context_manager(self, cm: ContextManager) -> AgentBuilder:
+        """Set a custom context manager for token budget fitting."""
+        self._config["context_manager"] = cm
+        return self
+
+    # ── Middleware ───────────────────────────────────────────────────
+
+    def middleware(self, middleware: list[Middleware]) -> AgentBuilder:
+        """Set the middleware pipeline. Replaces any previously set middleware."""
+        self._config["middleware"] = list(middleware)
+        return self
+
+    def add_middleware(self, mw: Middleware) -> AgentBuilder:
+        """Add a single middleware to the pipeline."""
+        if "middleware" not in self._config:
+            self._config["middleware"] = []
+        self._config["middleware"].append(mw)
+        return self
+
+    # ── Memory ──────────────────────────────────────────────────────
+
+    def memory_manager(self, manager: Any) -> AgentBuilder:
+        """
+        Set a fully configured MemoryManager with custom strategies.
+
+        Example:
+            from curio_agent_sdk.memory.manager import (
+                MemoryManager, UserMessageInjection, SaveEverythingStrategy,
+            )
+            agent = Agent.builder() \\
+                .memory_manager(MemoryManager(
+                    memory=VectorMemory(),
+                    injection_strategy=UserMessageInjection(max_tokens=4000),
+                    save_strategy=SaveEverythingStrategy(),
+                )) \\
+                .build()
+        """
+        self._config["memory_manager"] = manager
+        return self
+
+    # ── Human-in-the-loop ───────────────────────────────────────────
+
+    def human_input(self, handler: HumanInputHandler) -> AgentBuilder:
+        """Set the human-in-the-loop handler."""
+        self._config["human_input"] = handler
+        return self
+
+    # ── State persistence ───────────────────────────────────────────
+
+    def state_store(self, store: StateStore) -> AgentBuilder:
+        """Set the state store for resumable execution."""
+        self._config["state_store"] = store
+        return self
+
+    def checkpoint_interval(self, n: int) -> AgentBuilder:
+        """Set how often to save state (every N iterations)."""
+        self._config["checkpoint_interval"] = n
+        return self
+
+    # ── Events ──────────────────────────────────────────────────────
+
+    def on_event(self, callback: Callable[[AgentEvent], None]) -> AgentBuilder:
+        """Set the event callback for observability."""
+        self._config["on_event"] = callback
+        return self
+
+    # ── Build ───────────────────────────────────────────────────────
+
+    def build(self) -> Agent:
+        """
+        Build and return the configured Agent.
+
+        All unset parameters use Agent's defaults.
+
+        Returns:
+            A fully configured Agent instance.
+
+        Raises:
+            ValueError: If the configuration is invalid.
+        """
+        from curio_agent_sdk.core.agent import Agent
+        return Agent(**self._config)
+
+    # ── Utility ─────────────────────────────────────────────────────
+
+    def clone(self) -> AgentBuilder:
+        """Create a copy of this builder with the same configuration."""
+        new_builder = AgentBuilder()
+        new_builder._config = dict(self._config)
+        return new_builder
+
+    def __repr__(self) -> str:
+        keys = ", ".join(self._config.keys())
+        return f"AgentBuilder(configured=[{keys}])"

@@ -23,6 +23,23 @@ from curio_agent_sdk.memory.conversation import ConversationMemory
 from curio_agent_sdk.memory.vector import VectorMemory
 from curio_agent_sdk.memory.key_value import KeyValueMemory
 from curio_agent_sdk.memory.composite import CompositeMemory
+from curio_agent_sdk.memory.manager import (
+    MemoryManager,
+    MemoryInjectionStrategy,
+    MemorySaveStrategy,
+    MemoryQueryStrategy,
+    DefaultInjection,
+    UserMessageInjection,
+    NoInjection,
+    DefaultSave,
+    SaveEverythingStrategy,
+    SaveSummaryStrategy,
+    NoSave,
+    PerIterationSave,
+    DefaultQuery,
+    KeywordQuery,
+    AdaptiveTokenQuery,
+)
 
 __all__ = [
     "Memory",
@@ -31,4 +48,20 @@ __all__ = [
     "VectorMemory",
     "KeyValueMemory",
     "CompositeMemory",
+    # Manager and strategies
+    "MemoryManager",
+    "MemoryInjectionStrategy",
+    "MemorySaveStrategy",
+    "MemoryQueryStrategy",
+    "DefaultInjection",
+    "UserMessageInjection",
+    "NoInjection",
+    "DefaultSave",
+    "SaveEverythingStrategy",
+    "SaveSummaryStrategy",
+    "NoSave",
+    "PerIterationSave",
+    "DefaultQuery",
+    "KeywordQuery",
+    "AdaptiveTokenQuery",
 ]

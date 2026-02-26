@@ -24,6 +24,8 @@ Quick start:
 
 # Core
 from curio_agent_sdk.core.agent import Agent
+from curio_agent_sdk.core.runtime import Runtime
+from curio_agent_sdk.core.builder import AgentBuilder
 from curio_agent_sdk.core.state import AgentState
 from curio_agent_sdk.core.tools.tool import Tool, tool, ToolConfig
 from curio_agent_sdk.core.tools.schema import ToolSchema, ToolParameter
@@ -69,6 +71,22 @@ from curio_agent_sdk.memory.conversation import ConversationMemory
 from curio_agent_sdk.memory.vector import VectorMemory
 from curio_agent_sdk.memory.key_value import KeyValueMemory
 from curio_agent_sdk.memory.composite import CompositeMemory
+from curio_agent_sdk.memory.manager import (
+    MemoryManager,
+    MemoryInjectionStrategy,
+    MemorySaveStrategy,
+    MemoryQueryStrategy,
+    DefaultInjection,
+    UserMessageInjection,
+    NoInjection,
+    DefaultSave,
+    SaveEverythingStrategy,
+    NoSave,
+    PerIterationSave,
+    DefaultQuery,
+    KeywordQuery,
+    AdaptiveTokenQuery,
+)
 
 # Checkpointing
 from curio_agent_sdk.core.checkpoint import (
@@ -102,6 +120,8 @@ __version__ = "0.4.0"
 __all__ = [
     # Core
     "Agent",
+    "Runtime",
+    "AgentBuilder",
     "AgentState",
     "Tool",
     "tool",
@@ -156,6 +176,21 @@ __all__ = [
     "VectorMemory",
     "KeyValueMemory",
     "CompositeMemory",
+    # Memory Manager and Strategies
+    "MemoryManager",
+    "MemoryInjectionStrategy",
+    "MemorySaveStrategy",
+    "MemoryQueryStrategy",
+    "DefaultInjection",
+    "UserMessageInjection",
+    "NoInjection",
+    "DefaultSave",
+    "SaveEverythingStrategy",
+    "NoSave",
+    "PerIterationSave",
+    "DefaultQuery",
+    "KeywordQuery",
+    "AdaptiveTokenQuery",
     # Checkpointing
     "Checkpoint",
     "CheckpointStore",
