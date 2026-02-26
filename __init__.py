@@ -71,6 +71,11 @@ from curio_agent_sdk.memory.conversation import ConversationMemory
 from curio_agent_sdk.memory.vector import VectorMemory
 from curio_agent_sdk.memory.key_value import KeyValueMemory
 from curio_agent_sdk.memory.composite import CompositeMemory
+from curio_agent_sdk.memory.working import WorkingMemory
+from curio_agent_sdk.memory.episodic import EpisodicMemory, Episode
+from curio_agent_sdk.memory.graph import GraphMemory, Triple
+from curio_agent_sdk.memory.self_editing import SelfEditingMemory
+from curio_agent_sdk.memory.file_memory import FileMemory
 from curio_agent_sdk.memory.manager import (
     MemoryManager,
     MemoryInjectionStrategy,
@@ -86,6 +91,12 @@ from curio_agent_sdk.memory.manager import (
     DefaultQuery,
     KeywordQuery,
     AdaptiveTokenQuery,
+)
+from curio_agent_sdk.memory.policies import (
+    importance_score,
+    decay_score,
+    combined_relevance,
+    summarize_old_memories,
 )
 
 # Structured output
@@ -212,6 +223,17 @@ __all__ = [
     "VectorMemory",
     "KeyValueMemory",
     "CompositeMemory",
+    "WorkingMemory",
+    "EpisodicMemory",
+    "Episode",
+    "GraphMemory",
+    "Triple",
+    "SelfEditingMemory",
+    "FileMemory",
+    "importance_score",
+    "decay_score",
+    "combined_relevance",
+    "summarize_old_memories",
     # Memory Manager and Strategies
     "MemoryManager",
     "MemoryInjectionStrategy",

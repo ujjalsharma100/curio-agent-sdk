@@ -8,9 +8,11 @@ embedding function for custom providers.
 
 from __future__ import annotations
 
-import hashlib
+import asyncio
+import json
 import logging
 import math
+from pathlib import Path
 from typing import Any, Callable, Awaitable
 
 from curio_agent_sdk.core.component import Component
@@ -84,22 +86,66 @@ class VectorMemory(Memory, Component):
         self,
         embedding_fn: Callable[[list[str]], Awaitable[list[list[float]]]] | None = None,
         embedding_model: str = "text-embedding-3-small",
+        persist_path: Path | str | None = None,
     ):
         self.embedding_fn = embedding_fn or _default_embedding_fn
         self.embedding_model = embedding_model
+        self._persist_path = Path(persist_path).expanduser().resolve() if persist_path else None
         self._entries: list[MemoryEntry] = []
         self._vectors: list[list[float]] = []
         self._index: dict[str, int] = {}  # entry_id -> index
 
-    # ── Component lifecycle (for persistence: load/save index in Phase 3.4) ──
+    # ── Component lifecycle (persistence: load/save when persist_path is set) ──
 
     async def startup(self) -> None:
-        """Load index if persistence is configured (no-op for in-memory)."""
-        pass
+        """Load index from disk if persist_path is set (no-op otherwise)."""
+        if not self._persist_path:
+            return
+        path = self._persist_path
+        if not path.suffix:
+            path = path.with_suffix(".json")
+        if not path.exists():
+            return
+        try:
+            raw = await asyncio.to_thread(path.read_text, encoding="utf-8")
+            data = json.loads(raw)
+            entries_data = data.get("entries", [])
+            vectors_data = data.get("vectors", [])
+            self._entries = [MemoryEntry.from_dict(e) for e in entries_data]
+            self._vectors = [list(v) for v in vectors_data]
+            self._index = {e.id: i for i, e in enumerate(self._entries)}
+            if len(self._entries) != len(self._vectors):
+                logger.warning(
+                    "VectorMemory persist file has %d entries and %d vectors; resetting.",
+                    len(self._entries),
+                    len(self._vectors),
+                )
+                self._entries.clear()
+                self._vectors.clear()
+                self._index.clear()
+        except Exception as e:
+            logger.warning("Failed to load VectorMemory from %s: %s", path, e)
 
     async def shutdown(self) -> None:
-        """Save index if persistence is configured (no-op for in-memory)."""
-        pass
+        """Save index to disk if persist_path is set (no-op otherwise)."""
+        if not self._persist_path or not self._entries:
+            return
+        path = self._persist_path
+        if not path.suffix:
+            path = path.with_suffix(".json")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            data = {
+                "entries": [e.to_dict() for e in self._entries],
+                "vectors": self._vectors,
+            }
+            await asyncio.to_thread(
+                path.write_text,
+                json.dumps(data, ensure_ascii=False, indent=0),
+                encoding="utf-8",
+            )
+        except Exception as e:
+            logger.warning("Failed to save VectorMemory to %s: %s", path, e)
 
     async def health_check(self) -> bool:
         """Return True if the memory is ready to use."""
