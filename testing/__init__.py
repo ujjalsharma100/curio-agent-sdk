@@ -24,6 +24,7 @@ from curio_agent_sdk.testing.harness import AgentTestHarness
 from curio_agent_sdk.testing.toolkit import ToolTestKit
 from curio_agent_sdk.testing.integration import MultiAgentTestHarness
 from curio_agent_sdk.testing.replay import RecordingMiddleware, ReplayLLMClient
+from curio_agent_sdk.testing.benchmark import BenchmarkSuite
 from curio_agent_sdk.testing.eval import (
     AgentEvalSuite,
     EvalDataset,
@@ -47,6 +48,7 @@ __all__ = [
     "MultiAgentTestHarness",
     "RecordingMiddleware",
     "ReplayLLMClient",
+    "BenchmarkSuite",
     "text_response",
     "tool_call_response",
     # Eval suite

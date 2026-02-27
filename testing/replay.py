@@ -126,14 +126,12 @@ class RecordingMiddleware(Middleware):
         Useful in tests for comparing replayed runs:
             assert result.output == recorder.recorded_output
         """
-        for call in reversed(self.recording.llm_calls):
-            msg = call["response"]["message"] if isinstance(call, dict) else call.response.get("message")
-            # When using LLMCallRecord, response is a dict
-        # Fallback: derive from structured payloads
+        # Use the last recorded LLM response's text/content if available
         for rc in reversed(self.recording.llm_calls):
-            text = rc.response.get("message", {}).get("text")
+            msg = rc.response.get("message", {})
+            text = msg.get("text") or msg.get("content")
             if text:
-                return text
+                return str(text)
         return ""
 
 
@@ -277,7 +275,6 @@ def _usage_from_dict(data: Dict[str, Any]) -> TokenUsage:
         output_tokens=data.get("output_tokens", 0),
         cache_read_tokens=data.get("cache_read_tokens", 0),
         cache_write_tokens=data.get("cache_write_tokens", 0),
-        output_tokens=data.get("output_tokens", 0),
     )
 
 
