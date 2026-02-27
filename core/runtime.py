@@ -307,6 +307,30 @@ class Runtime:
                 result[name] = False
         return result
 
+    async def system_health(self) -> dict[str, Any]:
+        """
+        Aggregated health report across all components.
+
+        Returns a dict with:
+        - "healthy": bool — True if all components are healthy
+        - "components": dict[str, bool] — per-component health
+        - "components_started": bool — whether startup() has been called
+        - "total_components": int
+        - "healthy_count": int
+        - "unhealthy_count": int
+        """
+        components = await self.health_check_components()
+        healthy_count = sum(1 for v in components.values() if v)
+        unhealthy_count = len(components) - healthy_count
+        return {
+            "healthy": unhealthy_count == 0,
+            "components": components,
+            "components_started": self._components_started,
+            "total_components": len(components),
+            "healthy_count": healthy_count,
+            "unhealthy_count": unhealthy_count,
+        }
+
     # ── State creation ──────────────────────────────────────────────
 
     def create_state(self, input_text: str, context: dict[str, Any] | None = None) -> AgentState:

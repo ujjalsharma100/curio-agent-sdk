@@ -12,6 +12,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from curio_agent_sdk.core.component import Component
+from curio_agent_sdk.core.circuit_breaker import CircuitBreaker
 from curio_agent_sdk.mcp.client import MCPClient
 from curio_agent_sdk.mcp.adapter import MCPToolAdapter
 from curio_agent_sdk.mcp.config import MCPServerConfig
@@ -48,6 +49,8 @@ class MCPBridge(Component):
         timeout: float = 30.0,
         resource_uris: list[str] | None = None,
         resolve_env: bool = True,
+        circuit_breaker_max_failures: int = 3,
+        circuit_breaker_recovery_seconds: float = 300.0,
     ):
         self.server_specs = list(server_specs)
         self.tool_registry = tool_registry
@@ -56,17 +59,31 @@ class MCPBridge(Component):
         self.resolve_env = resolve_env
         self._clients: list[MCPClient] = []
         self._tool_names_added: list[str] = []
+        # Per-server circuit breakers keyed by server description
+        self._circuit_breakers: dict[str, CircuitBreaker] = {}
+        self._cb_max_failures = circuit_breaker_max_failures
+        self._cb_recovery_seconds = circuit_breaker_recovery_seconds
+
+    def get_circuit_breaker(self, server_desc: str) -> CircuitBreaker | None:
+        """Get the circuit breaker for an MCP server by description."""
+        return self._circuit_breakers.get(server_desc)
 
     async def startup(self) -> None:
         """Connect to each MCP server and register discovered tools."""
         for spec in self.server_specs:
             desc = _describe_spec(spec)
+            cb = CircuitBreaker(
+                max_failures=self._cb_max_failures,
+                recovery_seconds=self._cb_recovery_seconds,
+            )
+            self._circuit_breakers[desc] = cb
             try:
                 if isinstance(spec, str):
                     client = MCPClient(server_url=spec, timeout=self.timeout)
                 else:
                     client = MCPClient(config=spec, timeout=self.timeout, resolve_env=self.resolve_env)
                 await client.connect()
+                cb.record_success()
                 self._clients.append(client)
                 tools = await client.list_all_tools()
                 for t in tools:
@@ -78,6 +95,7 @@ class MCPBridge(Component):
                     self._tool_names_added.append(name)
                 logger.info("MCP: connected to %s, registered %d tools", desc, len(tools))
             except Exception as e:
+                cb.record_failure()
                 logger.warning("MCP: failed to connect to %s: %s", desc, e)
                 raise
 
@@ -93,8 +111,11 @@ class MCPBridge(Component):
         self._tool_names_added.clear()
 
     async def health_check(self) -> bool:
-        """True if at least one MCP client was connected."""
-        return len(self._clients) >= 0  # Always true after startup; no ping in spec
+        """True if no MCP server circuit breakers are open."""
+        for cb in self._circuit_breakers.values():
+            if cb.is_open:
+                return False
+        return True
 
     async def get_resource_context(self, uris: list[str] | None = None) -> str:
         """

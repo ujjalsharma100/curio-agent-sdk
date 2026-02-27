@@ -448,6 +448,102 @@ class TaskManager:
             raise
         return await self.get_result(task_id)
 
+    async def scan_incomplete(
+        self,
+        agent: "Agent",
+    ) -> list[RecoveredRun]:
+        """
+        Scan the agent's StateStore for incomplete runs that may need recovery.
+
+        Returns a list of RecoveredRun objects describing runs that were
+        interrupted (e.g., by a crash) and can be resumed.
+
+        Args:
+            agent: Agent whose StateStore to scan.
+
+        Returns:
+            List of RecoveredRun objects for runs that have saved state
+            but are not tracked by this TaskManager (i.e., were interrupted).
+        """
+        state_store = getattr(getattr(agent, "runtime", None), "state_store", None)
+        if state_store is None:
+            return []
+
+        agent_id = getattr(agent, "agent_id", "")
+        try:
+            run_ids = await state_store.list_runs(agent_id)
+        except Exception as e:
+            logger.warning("Failed to list runs for recovery: %s", e)
+            return []
+
+        recovered: list[RecoveredRun] = []
+        for run_id in run_ids:
+            # Skip runs that are already tracked in this TaskManager
+            if run_id in self._tasks:
+                continue
+            try:
+                state = await state_store.load(run_id)
+                if state is None:
+                    continue
+                # A run with saved state that is not done is considered incomplete
+                if not state.done:
+                    recovered.append(RecoveredRun(
+                        run_id=run_id,
+                        agent_id=agent_id,
+                        iteration=state.iteration,
+                        max_iterations=state.max_iterations,
+                    ))
+            except Exception as e:
+                logger.warning("Failed to load state for run %s: %s", run_id, e)
+        return recovered
+
+    async def recover_incomplete(
+        self,
+        agent: "Agent",
+        input_text: str = "",
+        **kwargs: Any,
+    ) -> list[str]:
+        """
+        Scan StateStore for incomplete runs and resume them.
+
+        Each incomplete run is submitted as a resumed task. Returns the
+        list of task IDs for the recovered runs.
+
+        Args:
+            agent: Agent to resume runs for.
+            input_text: Fallback input text for resumed runs.
+            **kwargs: Passed to agent.arun() on resume.
+
+        Returns:
+            List of task_id strings for recovered runs.
+        """
+        incomplete = await self.scan_incomplete(agent)
+        task_ids: list[str] = []
+        for run_info in incomplete:
+            task_id = run_info.run_id
+            run_id = task_id
+            entry = _TaskEntry(
+                task_id=task_id,
+                run_id=run_id,
+                agent=agent,
+                input_text=input_text,
+                kwargs=dict(kwargs),
+                status=TASK_PAUSED,
+                iteration=run_info.iteration,
+                max_iterations=run_info.max_iterations,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            async with self._lock:
+                self._tasks[task_id] = entry
+            try:
+                await self.resume(task_id)
+                task_ids.append(task_id)
+                logger.info("Recovered incomplete run %s at iteration %d", run_id, run_info.iteration)
+            except Exception as e:
+                logger.warning("Failed to recover run %s: %s", run_id, e)
+        return task_ids
+
     async def list_tasks(self, status: str | None = None) -> list[TaskInfo]:
         """
         List tasks, optionally filtered by status.
@@ -474,6 +570,16 @@ class TaskManager:
             )
             for e in items
         ]
+
+
+@dataclass
+class RecoveredRun:
+    """Information about an incomplete run found during crash recovery."""
+
+    run_id: str
+    agent_id: str
+    iteration: int
+    max_iterations: int
 
 
 @dataclass

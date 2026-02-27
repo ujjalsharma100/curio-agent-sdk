@@ -46,7 +46,13 @@ from curio_agent_sdk.core.loops.tool_calling import ToolCallingLoop
 
 # LLM
 from curio_agent_sdk.llm.client import LLMClient
-from curio_agent_sdk.llm.router import TieredRouter
+from curio_agent_sdk.llm.router import (
+    TieredRouter,
+    DegradationStrategy,
+    ResetAndRetry,
+    FallbackToLowerTier,
+    RaiseError,
+)
 from curio_agent_sdk.llm.providers.base import LLMProvider
 
 # Models
@@ -171,6 +177,11 @@ from curio_agent_sdk.core.task_manager import (
     TaskManager,
     TaskStatus,
     TaskInfo,
+    RecoveredRun,
+)
+from curio_agent_sdk.core.circuit_breaker import (
+    CircuitBreaker,
+    CircuitState,
 )
 from curio_agent_sdk.core.plugins import (
     Plugin,
@@ -227,6 +238,10 @@ __all__ = [
     # LLM
     "LLMClient",
     "TieredRouter",
+    "DegradationStrategy",
+    "ResetAndRetry",
+    "FallbackToLowerTier",
+    "RaiseError",
     "LLMProvider",
     "Message",
     "ToolCall",
@@ -345,6 +360,7 @@ __all__ = [
     "TaskManager",
     "TaskStatus",
     "TaskInfo",
+    "RecoveredRun",
     # Computer use & browser
     "ComputerUseToolkit",
     "BrowserToolkit",
@@ -375,4 +391,7 @@ __all__ = [
     "EventBusBridge",
     "EventFilter",
     "DeadLetterEntry",
+    # Reliability
+    "CircuitBreaker",
+    "CircuitState",
 ]

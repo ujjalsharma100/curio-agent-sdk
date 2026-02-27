@@ -24,6 +24,7 @@ class ToolConfig:
     require_confirmation: bool = False
     cache_ttl: float | None = None  # TTL in seconds for caching results; None = no caching
     sandboxed: bool = False  # Flag for sandboxed execution (actual sandboxing deferred)
+    idempotent: bool = False  # If True, retried calls with same args return previous result
 
 
 class Tool:

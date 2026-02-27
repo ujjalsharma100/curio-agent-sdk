@@ -2,14 +2,17 @@
 LLMClient - the main interface for making LLM calls.
 
 Combines tiered routing, provider dispatch, automatic failover,
-usage tracking, and streaming into a single async interface.
+usage tracking, request deduplication, and streaming into a single async interface.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 import time
+from dataclasses import dataclass, field
 from typing import Any, AsyncIterator
 
 from curio_agent_sdk.llm.router import TieredRouter, RouteResult
@@ -44,6 +47,13 @@ BUILTIN_PROVIDERS: dict[str, type[LLMProvider]] = {
 MAX_FAILOVER_RETRIES = 10
 
 
+@dataclass
+class _DedupeEntry:
+    """Cached LLM response with expiry."""
+    response: LLMResponse
+    expires_at: float
+
+
 class LLMClient:
     """
     Unified async LLM client with routing, failover, and streaming.
@@ -73,6 +83,8 @@ class LLMClient:
         self,
         router: TieredRouter | None = None,
         custom_providers: dict[str, type[LLMProvider]] | None = None,
+        dedup_enabled: bool = False,
+        dedup_ttl: float = 30.0,
     ):
         """
         Initialize the LLM client.
@@ -80,6 +92,9 @@ class LLMClient:
         Args:
             router: TieredRouter for provider/model selection. Auto-created from env if None.
             custom_providers: Additional provider classes (name -> class).
+            dedup_enabled: Enable request deduplication cache. Identical LLM
+                calls within dedup_ttl seconds return cached results.
+            dedup_ttl: Time-to-live (seconds) for deduplication cache entries.
         """
         self.router = router or TieredRouter()
 
@@ -96,6 +111,50 @@ class LLMClient:
             except Exception:
                 # Provider may not be installed (e.g., ollama not running)
                 pass
+
+        # Request deduplication cache
+        self._dedup_enabled = dedup_enabled
+        self._dedup_ttl = dedup_ttl
+        self._dedup_cache: dict[str, _DedupeEntry] = {}
+
+    def _dedup_key(self, request: LLMRequest) -> str:
+        """Generate a deterministic hash for an LLM request for dedup purposes."""
+        msg_data = []
+        for m in request.messages:
+            msg_data.append({"role": m.role, "content": m.content})
+        payload = json.dumps({
+            "messages": msg_data,
+            "model": request.model or "",
+            "provider": request.provider or "",
+            "tier": request.tier or "",
+            "tools": [t.get("function", {}).get("name", "") for t in (request.tools or [])],
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+        }, sort_keys=True, default=str)
+        return hashlib.sha256(payload.encode()).hexdigest()
+
+    def _get_dedup_cached(self, request: LLMRequest) -> LLMResponse | None:
+        """Return cached response if within TTL, else None."""
+        if not self._dedup_enabled:
+            return None
+        key = self._dedup_key(request)
+        entry = self._dedup_cache.get(key)
+        if entry is not None:
+            if time.monotonic() < entry.expires_at:
+                logger.debug("Dedup cache hit for LLM request")
+                return entry.response
+            del self._dedup_cache[key]
+        return None
+
+    def _set_dedup_cached(self, request: LLMRequest, response: LLMResponse) -> None:
+        """Store a response in the dedup cache."""
+        if not self._dedup_enabled:
+            return
+        key = self._dedup_key(request)
+        self._dedup_cache[key] = _DedupeEntry(
+            response=response,
+            expires_at=time.monotonic() + self._dedup_ttl,
+        )
 
     def _get_provider(self, name: str) -> LLMProvider:
         """Get or create a provider instance."""
@@ -128,6 +187,11 @@ class LLMClient:
             NoAvailableModelError: If no provider/model is available.
             LLMError: If the call fails after all retries.
         """
+        # Check dedup cache
+        cached = self._get_dedup_cached(request)
+        if cached is not None:
+            return cached
+
         excluded: list[str] = []
         last_error: Exception | None = None
 
@@ -157,6 +221,9 @@ class LLMClient:
 
                 # Record success
                 self.router.record_success(route.provider, route.key_name)
+
+                # Cache for dedup
+                self._set_dedup_cached(request, response)
 
                 return response
 

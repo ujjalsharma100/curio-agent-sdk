@@ -13,7 +13,77 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from curio_agent_sdk.core.circuit_breaker import CircuitBreaker
+
 logger = logging.getLogger(__name__)
+
+
+class DegradationStrategy:
+    """
+    Strategy for what to do when all keys for a provider are unhealthy.
+
+    Subclass and override ``handle`` to customize behavior.
+    """
+
+    def handle(self, router: "TieredRouter", provider: str) -> "ProviderKey | None":
+        """
+        Called when no healthy key is available for a provider.
+
+        Args:
+            router: The TieredRouter instance.
+            provider: The provider name with all keys unhealthy.
+
+        Returns:
+            A ProviderKey to use (or None to skip this provider).
+        """
+        raise NotImplementedError
+
+
+class ResetAndRetry(DegradationStrategy):
+    """Reset all key health and return the first enabled key (original behavior)."""
+
+    def handle(self, router: "TieredRouter", provider: str) -> "ProviderKey | None":
+        router._reset_health(provider)
+        prov = router.providers.get(provider)
+        if not prov:
+            return None
+        enabled = [k for k in prov.keys if k.enabled]
+        return enabled[0] if enabled else None
+
+
+class FallbackToLowerTier(DegradationStrategy):
+    """
+    When all keys for a provider are down, try the next lower tier's providers.
+
+    Falls back to ResetAndRetry if no lower tier is available.
+    """
+
+    def handle(self, router: "TieredRouter", provider: str) -> "ProviderKey | None":
+        tier_order = ["tier3", "tier2", "tier1"]
+        for tier_name in tier_order:
+            tier = router.tiers.get(tier_name)
+            if not tier or not tier.enabled:
+                continue
+            for mp in tier.model_priority:
+                if mp.provider == provider:
+                    continue
+                if mp.provider not in router.providers:
+                    continue
+                prov = router.providers[mp.provider]
+                if not prov.enabled:
+                    continue
+                key = router._get_healthy_key_no_degrade(mp.provider)
+                if key:
+                    return key
+        # Fallback: reset and retry
+        return ResetAndRetry().handle(router, provider)
+
+
+class RaiseError(DegradationStrategy):
+    """Return None so the caller gets a clear signal that no key is available."""
+
+    def handle(self, router: "TieredRouter", provider: str) -> "ProviderKey | None":
+        return None
 
 
 @dataclass
@@ -55,49 +125,45 @@ class ProviderConfig:
 
 @dataclass
 class KeyHealth:
-    """Health tracking for a single API key."""
-    success_count: int = 0
-    failure_count: int = 0
-    consecutive_failures: int = 0
-    rate_limited: bool = False
-    last_failure: datetime | None = None
+    """
+    Health tracking for a single API key.
+
+    Delegates to CircuitBreaker for failure/recovery logic. The CircuitBreaker
+    is a reusable utility that also works for connectors, MCP servers, etc.
+    """
+    _breaker: CircuitBreaker = field(default_factory=lambda: CircuitBreaker(
+        max_failures=3,
+        recovery_seconds=300.0,
+        rate_limit_recovery_seconds=3600.0,
+    ))
     last_used: datetime | None = None
 
-    RATE_LIMIT_RECOVERY_SECONDS = 3600  # 1 hour
-    FAILURE_RECOVERY_SECONDS = 300  # 5 minutes
-    MAX_CONSECUTIVE_FAILURES = 3
+    @property
+    def success_count(self) -> int:
+        return self._breaker.success_count
+
+    @property
+    def failure_count(self) -> int:
+        return self._breaker.failure_count
+
+    @property
+    def consecutive_failures(self) -> int:
+        return self._breaker.consecutive_failures
+
+    @property
+    def rate_limited(self) -> bool:
+        return self._breaker.rate_limited
 
     @property
     def is_healthy(self) -> bool:
-        now = datetime.now()
-        if self.rate_limited and self.last_failure:
-            elapsed = (now - self.last_failure).total_seconds()
-            if elapsed < self.RATE_LIMIT_RECOVERY_SECONDS:
-                return False
-            # Recovered
-            self.rate_limited = False
-            self.consecutive_failures = 0
-
-        if self.consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES and self.last_failure:
-            elapsed = (now - self.last_failure).total_seconds()
-            if elapsed < self.FAILURE_RECOVERY_SECONDS:
-                return False
-            # Recovered
-            self.consecutive_failures = 0
-
-        return True
+        return self._breaker.allows_request
 
     def record_success(self):
-        self.success_count += 1
-        self.consecutive_failures = 0
+        self._breaker.record_success()
         self.last_used = datetime.now()
 
     def record_failure(self, is_rate_limit: bool = False):
-        self.failure_count += 1
-        self.consecutive_failures += 1
-        self.last_failure = datetime.now()
-        if is_rate_limit:
-            self.rate_limited = True
+        self._breaker.record_failure(is_rate_limit=is_rate_limit)
 
 
 @dataclass
@@ -132,6 +198,7 @@ class TieredRouter:
         retry_delay: float = 1.0,
         max_retry_delay: float = 30.0,
         retry_on_rate_limit: bool = True,
+        degradation_strategy: DegradationStrategy | None = None,
     ):
         """
         Initialize the router.
@@ -144,6 +211,8 @@ class TieredRouter:
             retry_delay: Base delay (seconds) for rate-limit backoff.
             max_retry_delay: Maximum delay (seconds) for backoff.
             retry_on_rate_limit: Whether to sleep before failover on rate limits.
+            degradation_strategy: Strategy when all keys are unhealthy.
+                Defaults to ResetAndRetry (original behavior).
         """
         self.providers: dict[str, ProviderConfig] = providers or {}
         self.tiers: dict[str, TierConfig] = {}
@@ -154,6 +223,7 @@ class TieredRouter:
         self.retry_delay = retry_delay
         self.max_retry_delay = max_retry_delay
         self.retry_on_rate_limit = retry_on_rate_limit
+        self.degradation_strategy = degradation_strategy or ResetAndRetry()
 
         if not self.providers:
             self._load_providers_from_env()
@@ -348,7 +418,7 @@ class TieredRouter:
         )
 
     def _get_healthy_key(self, provider: str) -> ProviderKey | None:
-        """Get next healthy key using round-robin."""
+        """Get next healthy key using round-robin, with degradation strategy on exhaustion."""
         prov = self.providers.get(provider)
         if not prov:
             return None
@@ -364,16 +434,35 @@ class TieredRouter:
         healthy = [k for k in prov.keys if k.enabled and self._is_key_healthy(provider, k.name)]
 
         if not healthy:
-            # All keys unhealthy - reset and use first
-            self._reset_health(provider)
-            enabled = [k for k in prov.keys if k.enabled]
-            return enabled[0] if enabled else None
+            # All keys unhealthy — delegate to degradation strategy
+            return self.degradation_strategy.handle(self, provider)
 
         # Round-robin
         idx = self._key_index.get(provider, 0)
         selected = healthy[idx % len(healthy)]
         self._key_index[provider] = (idx + 1) % len(healthy)
 
+        return selected
+
+    def _get_healthy_key_no_degrade(self, provider: str) -> ProviderKey | None:
+        """Get a healthy key without triggering degradation (for internal fallback use)."""
+        prov = self.providers.get(provider)
+        if not prov:
+            return None
+
+        if provider not in self.key_health:
+            self.key_health[provider] = {}
+            for key in prov.keys:
+                if key.enabled:
+                    self.key_health[provider][key.name] = KeyHealth()
+
+        healthy = [k for k in prov.keys if k.enabled and self._is_key_healthy(provider, k.name)]
+        if not healthy:
+            return None
+
+        idx = self._key_index.get(provider, 0)
+        selected = healthy[idx % len(healthy)]
+        self._key_index[provider] = (idx + 1) % len(healthy)
         return selected
 
     def _is_key_healthy(self, provider: str, key_name: str) -> bool:
@@ -383,9 +472,7 @@ class TieredRouter:
     def _reset_health(self, provider: str):
         if provider in self.key_health:
             for health in self.key_health[provider].values():
-                health.rate_limited = False
-                health.consecutive_failures = 0
-                health.last_failure = None
+                health._breaker.reset()
 
     def record_success(self, provider: str, key_name: str):
         health = self.key_health.get(provider, {}).get(key_name)

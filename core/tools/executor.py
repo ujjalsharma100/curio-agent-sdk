@@ -35,6 +35,13 @@ class _CacheEntry:
 
 
 @dataclass
+class _IdempotencyRecord:
+    """Record of a previously executed idempotent tool call."""
+    result: Any
+    error: str | None = None
+
+
+@dataclass
 class ToolResult:
     """Result of executing a single tool call."""
     tool_call_id: str
@@ -93,6 +100,8 @@ class ToolExecutor:
         self.hook_registry = hook_registry
         self.permission_policy = permission_policy
         self._cache: dict[str, _CacheEntry] = {}
+        # Idempotency tracking: key -> previous result
+        self._idempotency_store: dict[str, _IdempotencyRecord] = {}
         # Set by the loop before each step for hook context
         self.run_id: str = ""
         self.agent_id: str = ""
@@ -215,11 +224,30 @@ class ToolExecutor:
                         )
                     return tr
 
+            # Idempotency check: if this tool is idempotent and was already
+            # executed with the same args, return the previous result
+            idempotency_key = None
+            if tool.config.idempotent:
+                idempotency_key = self._cache_key(tool_name, args)
+                prev = self._idempotency_store.get(idempotency_key)
+                if prev is not None:
+                    logger.debug(f"Idempotent replay for tool '{tool_name}'")
+                    return ToolResult(
+                        tool_call_id=tool_call.id,
+                        tool_name=tool_name,
+                        result=prev.result,
+                        error=prev.error,
+                    )
+
             result = await tool.execute(**args)
 
             # Store in cache if configured
             if tool.config.cache_ttl is not None:
                 self._set_cached(tool_name, args, result, tool.config.cache_ttl)
+
+            # Record for idempotency tracking
+            if idempotency_key is not None:
+                self._idempotency_store[idempotency_key] = _IdempotencyRecord(result=result)
 
             logger.info(f"Tool '{tool_name}' executed successfully")
 

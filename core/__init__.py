@@ -63,6 +63,10 @@ from curio_agent_sdk.core.event_bus import (
     EventFilter,
     DeadLetterEntry,
 )
+from curio_agent_sdk.core.circuit_breaker import (
+    CircuitBreaker,
+    CircuitState,
+)
 
 __all__ = [
     "Agent",
@@ -117,4 +121,6 @@ __all__ = [
     "EventBusBridge",
     "EventFilter",
     "DeadLetterEntry",
+    "CircuitBreaker",
+    "CircuitState",
 ]
