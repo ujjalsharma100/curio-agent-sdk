@@ -194,6 +194,15 @@ from curio_agent_sdk.connectors import (
     resolve_credentials,
 )
 
+# Event bus (distributed event streaming)
+from curio_agent_sdk.core.event_bus import (
+    EventBus,
+    InMemoryEventBus,
+    EventBusBridge,
+    EventFilter,
+    DeadLetterEntry,
+)
+
 __version__ = "0.6.0"
 
 __all__ = [
@@ -360,4 +369,10 @@ __all__ = [
     "Plugin",
     "apply_plugins_to_builder",
     "discover_plugins",
+    # Event bus (distributed event streaming)
+    "EventBus",
+    "InMemoryEventBus",
+    "EventBusBridge",
+    "EventFilter",
+    "DeadLetterEntry",
 ]

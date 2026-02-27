@@ -195,6 +195,9 @@ class Runtime:
 
         # Connector framework (optional)
         connector_bridge: Any = None,
+
+        # Distributed event bus (optional)
+        event_bus: Any = None,
     ):
         self.loop = loop
         self.llm = llm
@@ -221,6 +224,16 @@ class Runtime:
         if on_event is not None:
             _register_on_event_adapter(self.hook_registry, on_event)
 
+        # Distributed event bus (optional): bridge hooks → bus
+        self.event_bus = event_bus
+        self._event_bus_bridge = None
+        if event_bus is not None:
+            from curio_agent_sdk.core.event_bus import EventBusBridge
+            self._event_bus_bridge = EventBusBridge(
+                bus=event_bus,
+                hook_registry=self.hook_registry,
+            )
+
         # Memory manager (no auto-wrapping; pass MemoryManager explicitly)
         self.memory_manager = memory_manager
 
@@ -244,6 +257,7 @@ class Runtime:
             self.loop,
             self.mcp_bridge,
             self.connector_bridge,
+            self._event_bus_bridge,
         ]
         seen: set[int] = set()
         out: list[Component] = []

@@ -56,6 +56,13 @@ from curio_agent_sdk.core.plugins import (
     apply_plugins_to_builder,
     discover_plugins,
 )
+from curio_agent_sdk.core.event_bus import (
+    EventBus,
+    InMemoryEventBus,
+    EventBusBridge,
+    EventFilter,
+    DeadLetterEntry,
+)
 
 __all__ = [
     "Agent",
@@ -105,4 +112,9 @@ __all__ = [
     "Plugin",
     "apply_plugins_to_builder",
     "discover_plugins",
+    "EventBus",
+    "InMemoryEventBus",
+    "EventBusBridge",
+    "EventFilter",
+    "DeadLetterEntry",
 ]

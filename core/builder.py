@@ -406,6 +406,25 @@ class AgentBuilder:
         self._config["mcp_resource_uris"] = list(resource_uris)
         return self
 
+    # ── Event bus ────────────────────────────────────────────────────
+
+    def event_bus(self, bus: Any) -> AgentBuilder:
+        """
+        Set a distributed event bus. All hook events will be auto-published
+        to the bus via an EventBusBridge so remote subscribers can observe
+        agent execution across processes or machines.
+
+        Example:
+            from curio_agent_sdk.core.event_bus import InMemoryEventBus
+            bus = InMemoryEventBus()
+            agent = Agent.builder().event_bus(bus).model("openai:gpt-4o").build()
+
+            # Subscribe from anywhere
+            await bus.subscribe("tool.call.*", my_handler)
+        """
+        self._config["event_bus"] = bus
+        return self
+
     # ── Connector framework ──────────────────────────────────────────
 
     def connector(self, connector: Any) -> AgentBuilder:
@@ -549,6 +568,9 @@ class AgentBuilder:
 
         # Connectors (optional)
         config.setdefault("connectors", None)
+
+        # Event bus (optional)
+        config.setdefault("event_bus", None)
 
         return Agent(**config)
 

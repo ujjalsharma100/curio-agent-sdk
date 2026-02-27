@@ -161,6 +161,9 @@ class Agent:
 
         # Connector framework (optional)
         connectors: list[Any] | None = None,
+
+        # Distributed event bus (optional)
+        event_bus: Any | None = None,
     ):
         # ── Resolve instructions (direct construction) ─────────────────
         base_prompt = system_prompt
@@ -355,7 +358,9 @@ class Agent:
             session_manager=session_manager,
             mcp_bridge=mcp_bridge,
             connector_bridge=connector_bridge,
+            event_bus=event_bus,
         )
+        self.event_bus = event_bus
         self.session_manager = session_manager
 
         # Expose the resolved memory_manager from runtime
