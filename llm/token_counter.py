@@ -8,7 +8,7 @@ and an approximate (chars/4) fallback for other providers.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from curio_agent_sdk.models.llm import Message, ToolSchema
@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 # Default chars-per-token for approximate counting (English text)
 APPROXIMATE_CHARS_PER_TOKEN = 4
+
+# Module-level cache for tiktoken encoders to avoid repeated lookup cost
+_TIKTOKEN_ENCODERS: dict[str, Any] = {}
 
 
 def _get_model_name(model: str) -> str:
@@ -64,22 +67,41 @@ def _messages_to_text(messages: list) -> str:
     return "\n".join(parts)
 
 
-def _count_tokens_tiktoken(messages: list, model_name: str) -> int:
-    """Count tokens using tiktoken for OpenAI-compatible models."""
+def _get_tiktoken_encoding(model_name: str) -> Any | None:
+    """
+    Get a cached tiktoken encoding for the given model name.
+
+    Falls back to "cl100k_base" for unknown models. Returns None if tiktoken
+    is not installed or an encoding cannot be created.
+    """
+    global _TIKTOKEN_ENCODERS
+
+    # Return cached encoder if available
+    enc = _TIKTOKEN_ENCODERS.get(model_name)
+    if enc is not None:
+        return enc
+
     try:
         import tiktoken
     except ImportError:
         logger.warning("tiktoken not installed; using approximate token count")
-        return _count_tokens_approximate(messages)
+        return None
 
     try:
-        encoding = tiktoken.encoding_for_model(model_name)
+        enc = tiktoken.encoding_for_model(model_name)
     except KeyError:
         # Unknown model; use cl100k_base for recent OpenAI/Groq models
         try:
-            encoding = tiktoken.get_encoding("cl100k_base")
+            enc = tiktoken.get_encoding("cl100k_base")
         except Exception:
-            return _count_tokens_approximate(messages)
+            return None
+
+    _TIKTOKEN_ENCODERS[model_name] = enc
+    return enc
+
+
+def _count_tokens_tiktoken_with_encoding(messages: list, encoding: Any) -> int:
+    """Count tokens using a provided tiktoken encoding."""
 
     # OpenAI chat format: every message has ~4 tokens overhead (role, etc.)
     # https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
@@ -117,6 +139,14 @@ def _count_tokens_tiktoken(messages: list, model_name: str) -> int:
                 total += len(encoding.encode(str(getattr(tc, "arguments", {}) or {})))
 
     return total
+
+
+def _count_tokens_tiktoken(messages: list, model_name: str) -> int:
+    """Count tokens using tiktoken for OpenAI-compatible models."""
+    encoding = _get_tiktoken_encoding(model_name)
+    if encoding is None:
+        return _count_tokens_approximate(messages)
+    return _count_tokens_tiktoken_with_encoding(messages, encoding)
 
 
 def _count_tokens_anthropic(messages: list, model_name: str, tools: list | None = None) -> int:
@@ -213,6 +243,9 @@ def count_tokens(
     Uses tiktoken for OpenAI/Groq, Anthropic's counting API for Anthropic models
     when the SDK is available, and an approximate (chars/4) fallback otherwise.
 
+    This function is optimized for repeated calls by caching tiktoken encoders
+    per model to avoid repeated encoding lookup overhead.
+
     Args:
         messages: List of Message objects.
         model: Model identifier, e.g. "gpt-4o", "openai:gpt-4o-mini", "claude-sonnet-4-6".
@@ -230,3 +263,31 @@ def count_tokens(
         return _count_tokens_anthropic(messages, model_name, tools)
     # ollama, unknown, etc.
     return _count_tokens_approximate(messages)
+
+
+def count_tokens_batch(
+    batches: list[list["Message"]],
+    model: str,
+    tools: list["ToolSchema"] | None = None,
+) -> list[int]:
+    """
+    Count input tokens for multiple message lists for the same model.
+
+    This is more efficient than calling count_tokens() repeatedly because it
+    reuses provider/model detection and cached tiktoken encoders.
+    """
+    provider = _infer_provider(model)
+    model_name = _get_model_name(model)
+
+    if provider in ("openai", "groq"):
+        encoding = _get_tiktoken_encoding(model_name)
+        if encoding is None:
+            return [_count_tokens_approximate(msgs) for msgs in batches]
+        return [_count_tokens_tiktoken_with_encoding(msgs, encoding) for msgs in batches]
+
+    if provider == "anthropic":
+        # Anthropic currently has no bulk count API; fall back to per-batch calls.
+        return [_count_tokens_anthropic(msgs, model_name, tools) for msgs in batches]
+
+    # ollama, unknown, etc.
+    return [_count_tokens_approximate(msgs) for msgs in batches]
