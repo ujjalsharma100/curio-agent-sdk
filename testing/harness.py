@@ -8,8 +8,10 @@ import asyncio
 from typing import Any
 
 from curio_agent_sdk.core.agent import Agent
+from curio_agent_sdk.core.tools.executor import ToolResult
 from curio_agent_sdk.models.agent import AgentRunResult
 from curio_agent_sdk.testing.mock_llm import MockLLM
+from curio_agent_sdk.testing.toolkit import ToolTestKit
 
 
 class AgentTestHarness:
@@ -40,9 +42,15 @@ class AgentTestHarness:
         assert harness.llm_calls == 2
     """
 
-    def __init__(self, agent: Agent, llm: MockLLM | None = None) -> None:
+    def __init__(
+        self,
+        agent: Agent,
+        llm: MockLLM | None = None,
+        tool_kit: ToolTestKit | None = None,
+    ) -> None:
         self.agent = agent
         self.mock_llm = llm or MockLLM()
+        self.tool_kit = tool_kit
         self.result: AgentRunResult | None = None
         self._tool_calls: list[tuple[str, dict[str, Any]]] = []
 
@@ -50,11 +58,59 @@ class AgentTestHarness:
         self.agent.llm = self.mock_llm  # type: ignore[assignment]
         self.agent._wire_loop()
 
+        # Attach registry to tool kit (for schema validation) if provided
+        if self.tool_kit is not None and getattr(self.agent, "registry", None) is not None:
+            self.tool_kit._attach_registry(self.agent.registry)  # type: ignore[arg-type]
+
         # Wrap tool executor to track calls
         original_execute = self.agent.executor.execute
 
         async def tracking_execute(tool_call, *args, **kwargs):
-            self._tool_calls.append((tool_call.name, tool_call.arguments))
+            tool_name = getattr(tool_call, "name", "")
+            args_dict = dict(getattr(tool_call, "arguments", {}) or {})
+
+            # Always record high-level call info for simple assertions
+            self._tool_calls.append((tool_name, args_dict))
+
+            # If a ToolTestKit is attached, let it validate/record and optionally mock
+            if self.tool_kit is not None:
+                mock = self.tool_kit._get_mock(tool_name)
+                if mock is not None:
+                    # Schema validation + record happen through _record_call
+                    if isinstance(mock.side_effect, Exception):
+                        # Simulate tool error
+                            # This will raise inside _record_call if schema is invalid
+                        self.tool_kit._record_call(tool_name, args_dict, result=None, error=str(mock.side_effect))
+                        return ToolResult(
+                            tool_call_id=tool_call.id,
+                            tool_name=tool_name,
+                            result=None,
+                            error=str(mock.side_effect),
+                        )
+                    try:
+                        if callable(mock.side_effect):
+                            result_value = mock.side_effect(args_dict)
+                        else:
+                            result_value = mock.returns
+                        self.tool_kit._record_call(tool_name, args_dict, result=result_value, error=None)
+                        return ToolResult(
+                            tool_call_id=tool_call.id,
+                            tool_name=tool_name,
+                            result=result_value,
+                        )
+                    except Exception as exc:  # pragma: no cover - defensive
+                        self.tool_kit._record_call(tool_name, args_dict, result=None, error=str(exc))
+                        return ToolResult(
+                            tool_call_id=tool_call.id,
+                            tool_name=tool_name,
+                            result=None,
+                            error=str(exc),
+                        )
+
+                # No mock configured: just record the call (and optionally validate)
+                self.tool_kit._record_call(tool_name, args_dict)
+
+            # Fall back to the original executor for real execution
             return await original_execute(tool_call, *args, **kwargs)
 
         self.agent.executor.execute = tracking_execute  # type: ignore[assignment]

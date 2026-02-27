@@ -77,13 +77,29 @@ class MockLLM:
 
     def add_tool_call_response(
         self,
-        tool_calls: list[ToolCall],
+        tool_calls: list[ToolCall] | str,
+        arguments: dict[str, Any] | None = None,
         text: str = "",
         model: str = "mock-model",
     ) -> None:
-        """Queue a tool call response."""
+        """
+        Queue a tool call response.
+
+        Args:
+            tool_calls: Either a list of :class:`ToolCall` objects (legacy form)
+                or a single tool name as a string.
+            arguments: When *tool_calls* is a string name, the arguments dict
+                for the generated ToolCall.
+        """
+        if isinstance(tool_calls, str):
+            # Convenience form: name + arguments
+            tc = ToolCall(id=f"call_{uuid.uuid4().hex[:8]}", name=tool_calls, arguments=arguments or {})
+            tc_list = [tc]
+        else:
+            tc_list = tool_calls
+
         self._responses.append(LLMResponse(
-            message=Message.assistant(text, tool_calls=tool_calls),
+            message=Message.assistant(text, tool_calls=tc_list),
             usage=TokenUsage(input_tokens=50, output_tokens=30),
             model=model,
             provider="mock",
