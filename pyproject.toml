@@ -25,6 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "python-dotenv>=1.0.0",
+    "httpx",
 ]
 
 [project.optional-dependencies]

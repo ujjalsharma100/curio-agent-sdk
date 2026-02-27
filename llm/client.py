@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator
 
+from curio_agent_sdk.core.component import Component
 from curio_agent_sdk.llm.router import TieredRouter, RouteResult
 from curio_agent_sdk.llm.providers.base import LLMProvider
 from curio_agent_sdk.llm.providers.openai import OpenAIProvider
@@ -54,7 +55,7 @@ class _DedupeEntry:
     expires_at: float
 
 
-class LLMClient:
+class LLMClient(Component):
     """
     Unified async LLM client with routing, failover, and streaming.
 
@@ -116,6 +117,34 @@ class LLMClient:
         self._dedup_enabled = dedup_enabled
         self._dedup_ttl = dedup_ttl
         self._dedup_cache: dict[str, _DedupeEntry] = {}
+
+    # ── Component lifecycle -------------------------------------------------
+
+    async def startup(self) -> None:
+        """
+        Startup hook for Runtime component lifecycle.
+
+        Currently providers lazily initialize their own HTTP clients, so there is
+        nothing to eagerly warm up here. This method exists for symmetry and
+        future extensibility.
+        """
+        return None
+
+    async def shutdown(self) -> None:
+        """
+        Shutdown hook to clean up provider resources (e.g. HTTP connection pools).
+        """
+        for provider in self._provider_instances.values():
+            shutdown = getattr(provider, "shutdown", None)
+            if shutdown is not None:
+                try:
+                    await shutdown()
+                except Exception as e:
+                    logger.warning(
+                        "Provider %s shutdown failed: %s",
+                        type(provider).__name__,
+                        e,
+                    )
 
     def _dedup_key(self, request: LLMRequest) -> str:
         """Generate a deterministic hash for an LLM request for dedup purposes."""

@@ -11,6 +11,8 @@ import logging
 import time
 from typing import AsyncIterator
 
+import httpx
+
 from curio_agent_sdk.llm.providers.base import LLMProvider
 from curio_agent_sdk.models.llm import (
     LLMRequest,
@@ -48,12 +50,31 @@ class AnthropicProvider(LLMProvider):
 
     provider_name = "anthropic"
 
+    def __init__(self) -> None:
+        # Shared HTTP client for connection pooling across requests.
+        self._http_client: httpx.AsyncClient | None = None
+
+    def _get_http_client(self) -> httpx.AsyncClient:
+        """
+        Lazily create a shared httpx.AsyncClient with connection pooling.
+
+        This client is reused across all Anthropic requests made by this
+        provider instance, while API keys remain per-request on the SDK client.
+        """
+        if self._http_client is None:
+            self._http_client = httpx.AsyncClient(
+                limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+            )
+        return self._http_client
+
     def _get_client(self, api_key: str | None = None) -> anthropic.AsyncAnthropic:
         if not ANTHROPIC_AVAILABLE:
             raise ImportError("anthropic package not installed. Install with: pip install anthropic")
         kwargs = {}
         if api_key:
             kwargs["api_key"] = api_key
+        # Reuse a shared httpx.AsyncClient for HTTP connection pooling.
+        kwargs["http_client"] = self._get_http_client()
         return anthropic.AsyncAnthropic(**kwargs)
 
     def _build_params(self, request: LLMRequest, model: str) -> dict:
@@ -296,3 +317,11 @@ class AnthropicProvider(LLMProvider):
             raise LLMAuthenticationError(str(e), self.provider_name, model) from e
         except anthropic.APIError as e:
             raise LLMProviderError(str(e), self.provider_name, model) from e
+
+    async def shutdown(self) -> None:
+        """
+        Close the shared HTTP client to release pooled connections.
+        """
+        if self._http_client is not None:
+            await self._http_client.aclose()
+            self._http_client = None

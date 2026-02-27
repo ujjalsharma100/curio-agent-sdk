@@ -11,6 +11,8 @@ import logging
 import time
 from typing import AsyncIterator
 
+import httpx
+
 from curio_agent_sdk.llm.providers.base import LLMProvider
 from curio_agent_sdk.models.llm import (
     LLMRequest,
@@ -44,12 +46,30 @@ class OllamaProvider(LLMProvider):
 
     provider_name = "ollama"
 
+    def __init__(self) -> None:
+        # Shared HTTP client for connection pooling across Ollama requests.
+        self._http_client: httpx.AsyncClient | None = None
+
+    def _get_http_client(self) -> httpx.AsyncClient:
+        """
+        Lazily create a shared httpx.AsyncClient with connection pooling.
+
+        This client is reused across all Ollama requests made by this provider
+        instance, while base URLs remain per-request on the AsyncOpenAI client.
+        """
+        if self._http_client is None:
+            self._http_client = httpx.AsyncClient(
+                limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+            )
+        return self._http_client
+
     def _get_client(self, base_url: str | None = None) -> AsyncOpenAI:
         if not OPENAI_AVAILABLE:
             raise ImportError("openai package required for Ollama. Install with: pip install openai")
         return AsyncOpenAI(
             api_key="ollama",  # Ollama doesn't need a real key
             base_url=base_url or OLLAMA_DEFAULT_URL,
+            http_client=self._get_http_client(),
         )
 
     def _build_messages(self, request: LLMRequest) -> list[dict]:
@@ -148,3 +168,11 @@ class OllamaProvider(LLMProvider):
             raise LLMProviderError(str(e), self.provider_name, model, status) from e
         except Exception as e:
             raise LLMProviderError(str(e), self.provider_name, model) from e
+
+    async def shutdown(self) -> None:
+        """
+        Close the shared HTTP client to release pooled connections.
+        """
+        if self._http_client is not None:
+            await self._http_client.aclose()
+            self._http_client = None
