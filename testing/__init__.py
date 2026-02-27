@@ -41,6 +41,10 @@ from curio_agent_sdk.testing.regression import (
     RegressionDetector,
     RegressionReport,
 )
+from curio_agent_sdk.testing.coverage import (
+    AgentCoverageTracker,
+    merge_coverage_reports,
+)
 
 __all__ = [
     "MockLLM",
@@ -67,4 +71,7 @@ __all__ = [
     # Regression
     "RegressionDetector",
     "RegressionReport",
+    # Coverage
+    "AgentCoverageTracker",
+    "merge_coverage_reports",
 ]

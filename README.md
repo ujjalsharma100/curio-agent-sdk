@@ -14,7 +14,7 @@ Curio Agent SDK provides everything you need to build autonomous agents:
 - **Middleware pipeline** - Logging, cost tracking, tracing, guardrails, rate limiting
 - **Memory system** - Conversation, vector, key-value, and composite memory
 - **Built-in tools** - Web fetch, file I/O, code execution, HTTP requests
-- **Testing utilities** - MockLLM and AgentTestHarness for deterministic tests
+- **Testing utilities** — MockLLM, AgentTestHarness, ToolTestKit, pytest fixtures, record/replay, snapshot testing, BenchmarkSuite, AgentCoverageTracker (tool/hook/error-path coverage), and GitHub Actions workflow template
 - **Checkpointing** - Save and resume agent runs
 - **Human-in-the-loop** - Tool confirmation before execution
 - **Context management** - Token budget fitting with multiple strategies
@@ -179,7 +179,16 @@ curio_agent_sdk/
 │   └── http.py                     # http_request
 ├── testing/                        # Testing utilities
 │   ├── mock_llm.py                 # MockLLM, text_response, tool_call_response
-│   └── harness.py                  # AgentTestHarness
+│   ├── harness.py                  # AgentTestHarness
+│   ├── fixtures.py                 # Pytest fixtures (mock_llm, agent_test_harness, in-memory stores)
+│   ├── coverage.py                 # AgentCoverageTracker (tool/hook/error-path coverage)
+│   ├── replay.py                   # RecordingMiddleware, ReplayLLMClient
+│   ├── toolkit.py                  # ToolTestKit
+│   ├── integration.py             # MultiAgentTestHarness
+│   ├── snapshot.py                # SnapshotTester
+│   ├── benchmark.py               # BenchmarkSuite
+│   ├── eval.py                    # AgentEvalSuite
+│   └── regression.py              # RegressionDetector
 └── config/                         # Minimal stub (see roadmap)
 ```
 
@@ -289,6 +298,8 @@ async for event in agent.astream("Tell me about quantum computing"):
 
 ### Testing
 
+Use **MockLLM** and **AgentTestHarness** for deterministic tests. For pytest, register the SDK fixtures in your `conftest.py` and use **AgentCoverageTracker** for tool/hook/error-path coverage reporting. A **GitHub Actions** workflow template is provided in `.github/workflows/agent-tests.yml`.
+
 ```python
 from curio_agent_sdk.testing import MockLLM, AgentTestHarness, tool_call_response
 
@@ -304,6 +315,10 @@ assert "4" in result.output
 assert harness.tool_calls == [("calculate", {"expression": "2+2"})]
 assert harness.llm_calls == 2
 ```
+
+**Pytest fixtures:** Add `pytest_plugins = ["curio_agent_sdk.testing.fixtures"]` to your `conftest.py` to use `mock_llm`, `agent_test_harness`, `in_memory_state_store`, `in_memory_persistence`, and `tool_test_kit` fixtures.
+
+**Coverage reporting:** Register `AgentCoverageTracker` with your agent's `HookRegistry` to record tools called, hooks emitted, and error paths hit; call `get_report()` or `print_report()` after runs.
 
 ### Checkpointing & Resume
 
