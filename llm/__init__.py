@@ -10,6 +10,7 @@ Provides async, message-based, provider-native LLM interface with:
 """
 
 from curio_agent_sdk.llm.client import LLMClient
+from curio_agent_sdk.llm.batch_client import BatchLLMClient
 from curio_agent_sdk.llm.router import TieredRouter, RouteResult, ProviderConfig, ProviderKey
 from curio_agent_sdk.llm.providers.base import LLMProvider
 from curio_agent_sdk.llm.providers.openai import OpenAIProvider
@@ -20,6 +21,7 @@ from curio_agent_sdk.llm.token_counter import count_tokens
 
 __all__ = [
     "LLMClient",
+    "BatchLLMClient",
     "TieredRouter",
     "RouteResult",
     "ProviderConfig",

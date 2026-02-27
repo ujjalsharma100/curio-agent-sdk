@@ -237,6 +237,7 @@ __all__ = [
     "ToolCallingLoop",
     # LLM
     "LLMClient",
+    "BatchLLMClient",
     "TieredRouter",
     "DegradationStrategy",
     "ResetAndRetry",

@@ -6,6 +6,7 @@ Groq uses OpenAI-compatible API, so this leverages the openai async client.
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import time
@@ -325,3 +326,83 @@ class GroqProvider(LLMProvider):
         if self._http_client is not None:
             await self._http_client.aclose()
             self._http_client = None
+
+
+class GroqBatchClient:
+    """
+    Helper for the Groq Batch API (async, offline batch processing).
+
+    Groq exposes an OpenAI-compatible batch endpoint at /openai/v1/batches.
+    This helper mirrors OpenAIBatchClient but targets the Groq base URL.
+    """
+
+    def __init__(self, api_key: str | None = None) -> None:
+        if not OPENAI_AVAILABLE:
+            raise ImportError("openai package required for Groq. Install with: pip install openai")
+        self._http_client = httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+        self._client = AsyncOpenAI(
+            api_key=api_key or "",
+            base_url=GROQ_BASE_URL,
+            http_client=self._http_client,
+        )
+
+    async def create_chat_batch(
+        self,
+        requests: list[dict],
+        completion_window: str = "24h",
+    ):
+        """
+        Create a Groq chat completions batch job.
+
+        `requests` should be a list of dicts with fields:
+        - custom_id
+        - method (e.g., "POST")
+        - url (e.g., "/v1/chat/completions")
+        - body (chat.completions payload)
+        """
+        lines = [json.dumps(r, separators=(",", ":")) for r in requests]
+        data = "\n".join(lines).encode("utf-8")
+
+        input_file = await self._client.files.create(
+            file=("batch.jsonl", io.BytesIO(data), "application/jsonl"),
+            purpose="batch",
+        )
+
+        batch = await self._client.batches.create(
+            input_file_id=input_file.id,
+            endpoint="/v1/chat/completions",
+            completion_window=completion_window,
+        )
+        return batch
+
+    async def retrieve_batch(self, batch_id: str):
+        """Retrieve metadata for a previously created batch job."""
+        return await self._client.batches.retrieve(batch_id)
+
+    async def iter_batch_results(self, batch_id: str):
+        """
+        Stream parsed JSON lines from a completed batch's output file.
+
+        Yields each result line as a Python dict.
+        """
+        batch = await self._client.batches.retrieve(batch_id)
+        output_file_id = getattr(batch, "output_file_id", None)
+        if not output_file_id:
+            return
+
+        stream = await self._client.files.content(output_file_id)
+        async for chunk in stream:
+            text = chunk.decode("utf-8") if isinstance(chunk, (bytes, bytearray)) else str(chunk)
+            for line in text.splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+    async def shutdown(self) -> None:
+        """Close underlying HTTP client."""
+        await self._http_client.aclose()

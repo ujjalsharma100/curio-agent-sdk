@@ -329,3 +329,54 @@ class AnthropicProvider(LLMProvider):
         if self._http_client is not None:
             await self._http_client.aclose()
             self._http_client = None
+
+
+class AnthropicBatchClient:
+    """
+    Helper for Anthropic's Messages Batches API.
+
+    This is a thin wrapper over anthropic.AsyncAnthropic.messages.batches
+    to support offline batch processing of Messages requests.
+    """
+
+    def __init__(self, api_key: str | None = None) -> None:
+        if not ANTHROPIC_AVAILABLE:
+            raise ImportError(
+                "anthropic package not installed. Install with: pip install anthropic"
+            )
+        self._http_client: httpx.AsyncClient | None = httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+        kwargs: dict = {}
+        if api_key:
+            kwargs["api_key"] = api_key
+        kwargs["http_client"] = self._http_client
+        self._client = anthropic.AsyncAnthropic(**kwargs)
+
+    async def create_message_batch(self, requests: list[dict]):
+        """
+        Create an Anthropic Messages batch via messages.batches.create().
+
+        `requests` should be a list of dicts with `custom_id` and `params`
+        as described in Anthropic's documentation.
+        """
+        return await self._client.messages.batches.create(requests=requests)
+
+    async def retrieve_message_batch(self, batch_id: str):
+        """Retrieve metadata for a previously created Messages batch."""
+        return await self._client.messages.batches.retrieve(batch_id)
+
+    async def iter_message_batch_results(self, batch_id: str):
+        """
+        Stream results for a Messages batch.
+
+        Yields individual result objects as provided by the Anthropic SDK.
+        """
+        async for result in self._client.messages.batches.results(batch_id):
+            yield result
+
+    async def shutdown(self) -> None:
+        """Close underlying HTTP client."""
+        if self._http_client is not None:
+            await self._http_client.aclose()
+            self._http_client = None
