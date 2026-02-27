@@ -32,6 +32,9 @@ class SubagentConfig:
     When model is None, the subagent uses the parent agent's LLM.
     When inherit_tools is True, the subagent gets the parent's tools in addition to its own.
     When inherit_memory is True, the subagent shares the parent's memory manager.
+    When inherit_hooks is True (default), the subagent shares the parent's HookRegistry,
+    so that hook consumers (tracing, logging, persistence) automatically cover subagent
+    activity and OTel spans share the same trace_id.
     """
 
     name: str
@@ -40,6 +43,7 @@ class SubagentConfig:
     model: str | None = None
     inherit_memory: bool = False
     inherit_tools: bool = False
+    inherit_hooks: bool = True
     max_iterations: int = 10
     timeout: float | None = None
 
@@ -99,23 +103,24 @@ class AgentOrchestrator:
         ):
             memory_manager = self._parent.memory_manager_instance
 
-        if config.model:
-            return Agent(
-                model=config.model,
-                system_prompt=config.system_prompt,
-                tools=tools,
-                memory_manager=memory_manager,
-                max_iterations=config.max_iterations,
-                timeout=config.timeout,
-            )
-        return Agent(
-            llm=self._parent.llm,
+        # Inherit hook registry for consumers (tracing, logging, etc.)
+        hook_registry = None
+        if config.inherit_hooks and getattr(self._parent, "hook_registry", None):
+            hook_registry = self._parent.hook_registry
+
+        kwargs: dict[str, Any] = dict(
             system_prompt=config.system_prompt,
             tools=tools,
             memory_manager=memory_manager,
             max_iterations=config.max_iterations,
             timeout=config.timeout,
         )
+        if hook_registry is not None:
+            kwargs["hook_registry"] = hook_registry
+
+        if config.model:
+            return Agent(model=config.model, **kwargs)
+        return Agent(llm=self._parent.llm, **kwargs)
 
     async def spawn(
         self,
@@ -146,6 +151,15 @@ class AgentOrchestrator:
                 )
             config = cfg
 
+        # Capture current OTel context so subagent spans share the same trace_id
+        otel_token = None
+        try:
+            from opentelemetry import context as otel_context
+            parent_ctx = otel_context.get_current()
+            otel_token = otel_context.attach(parent_ctx)
+        except ImportError:
+            pass
+
         subagent = self._build_subagent(config)
         try:
             if getattr(self._parent, "runtime", None) and getattr(
@@ -160,6 +174,12 @@ class AgentOrchestrator:
             )
         finally:
             await subagent.close()
+            if otel_token is not None:
+                try:
+                    from opentelemetry import context as otel_context
+                    otel_context.detach(otel_token)
+                except ImportError:
+                    pass
 
     async def spawn_background(
         self,

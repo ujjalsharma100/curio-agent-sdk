@@ -68,6 +68,15 @@ from curio_agent_sdk.middleware.rate_limit import RateLimitMiddleware
 from curio_agent_sdk.middleware.tracing import TracingMiddleware
 from curio_agent_sdk.middleware.guardrails import GuardrailsMiddleware, GuardrailsError
 
+# Hook-based observability consumers
+from curio_agent_sdk.middleware.consumers import (
+    TracingConsumer,
+    LoggingConsumer,
+    PersistenceConsumer,
+    TraceContextFilter,
+)
+from curio_agent_sdk.middleware.prometheus import PrometheusExporter
+
 # Human-in-the-loop
 from curio_agent_sdk.core.human_input import HumanInputHandler, CLIHumanInput
 
@@ -265,6 +274,12 @@ __all__ = [
     "TracingMiddleware",
     "GuardrailsMiddleware",
     "GuardrailsError",
+    # Hook-based observability consumers
+    "TracingConsumer",
+    "LoggingConsumer",
+    "PersistenceConsumer",
+    "TraceContextFilter",
+    "PrometheusExporter",
     # Human-in-the-loop
     "HumanInputHandler",
     "CLIHumanInput",

@@ -26,6 +26,13 @@ from curio_agent_sdk.middleware.cost_tracker import CostTracker
 from curio_agent_sdk.middleware.rate_limit import RateLimitMiddleware
 from curio_agent_sdk.middleware.tracing import TracingMiddleware
 from curio_agent_sdk.middleware.guardrails import GuardrailsMiddleware, GuardrailsError
+from curio_agent_sdk.middleware.consumers import (
+    TracingConsumer,
+    LoggingConsumer,
+    PersistenceConsumer,
+    TraceContextFilter,
+)
+from curio_agent_sdk.middleware.prometheus import PrometheusExporter
 
 __all__ = [
     "Middleware",
@@ -36,4 +43,11 @@ __all__ = [
     "TracingMiddleware",
     "GuardrailsMiddleware",
     "GuardrailsError",
+    # Hook-based consumers
+    "TracingConsumer",
+    "LoggingConsumer",
+    "PersistenceConsumer",
+    "TraceContextFilter",
+    # Prometheus
+    "PrometheusExporter",
 ]

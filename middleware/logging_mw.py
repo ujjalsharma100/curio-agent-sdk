@@ -20,6 +20,12 @@ class LoggingMiddleware(Middleware):
 
     Configurable log level and logger name.
 
+    .. deprecated::
+        Consider using :class:`~curio_agent_sdk.middleware.consumers.LoggingConsumer`
+        as a hook-based alternative. ``LoggingConsumer`` attaches to
+        ``HookRegistry`` events and supports automatic trace-id/span-id
+        correlation when OpenTelemetry is available.
+
     Example:
         agent = Agent(
             middleware=[LoggingMiddleware(level=logging.DEBUG)],

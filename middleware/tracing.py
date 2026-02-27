@@ -38,6 +38,13 @@ class TracingMiddleware(Middleware):
     If ``opentelemetry-api`` is not installed, the middleware silently
     degrades to a no-op (a warning is logged once).
 
+    .. deprecated::
+        Consider using :class:`~curio_agent_sdk.middleware.consumers.TracingConsumer`
+        as a hook-based alternative. ``TracingConsumer`` attaches to
+        ``HookRegistry`` events, avoids the ``id(request)`` correlation
+        hack, and produces cleaner trace graphs with proper ``run_id``-based
+        correlation.
+
     Args:
         service_name: Logical service name for the tracer/meter.
         tracer: An explicit Tracer instance (defaults to global).

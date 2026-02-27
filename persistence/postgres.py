@@ -5,6 +5,7 @@ Production-ready database persistence using PostgreSQL.
 """
 
 import json
+import math
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from contextlib import contextmanager
@@ -235,6 +236,29 @@ class PostgresPersistence(BasePersistence):
             cursor.execute(f"""
                 CREATE INDEX IF NOT EXISTS idx_audit_agent_id
                 ON {self._table('audit_logs')}(agent_id)
+            """)
+
+            # Cost entries table
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {self._table('cost_entries')} (
+                    id SERIAL PRIMARY KEY,
+                    run_id VARCHAR(255),
+                    agent_id VARCHAR(255),
+                    model VARCHAR(255),
+                    cost_usd DOUBLE PRECISION,
+                    input_tokens INTEGER,
+                    output_tokens INTEGER,
+                    cumulative_cost_usd DOUBLE PRECISION,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_cost_run_id
+                ON {self._table('cost_entries')}(run_id)
+            """)
+            cursor.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_cost_model
+                ON {self._table('cost_entries')}(model)
             """)
 
             logger.info(f"PostgreSQL schema initialized: {self.schema}")
@@ -482,11 +506,29 @@ class PostgresPersistence(BasePersistence):
 
     # ==================== Statistics ====================
 
+    @staticmethod
+    def _compute_percentiles(values: list[float], percentiles: list[int] | None = None) -> Dict[str, float]:
+        """Compute percentile values from a list of numbers."""
+        if not values:
+            return {}
+        if percentiles is None:
+            percentiles = [50, 75, 90, 95, 99]
+        values_sorted = sorted(values)
+        n = len(values_sorted)
+        result = {}
+        for p in percentiles:
+            idx = (p / 100) * (n - 1)
+            lower = int(idx)
+            upper = min(lower + 1, n - 1)
+            weight = idx - lower
+            result[f"p{p}"] = round(values_sorted[lower] * (1 - weight) + values_sorted[upper] * weight, 2)
+        return result
+
     def get_agent_run_stats(
         self,
         agent_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Get statistics for agent runs."""
+        """Get statistics for agent runs, including extended analytics."""
         with self._get_connection() as conn:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -530,15 +572,89 @@ class PostgresPersistence(BasePersistence):
                 FROM {self._table('agent_llm_usage')} {agent_filter}
             """, params)
             row = cursor.fetchone()
+            total_llm_calls = row['count']
+            total_input_tokens = row['input_tokens']
+            total_output_tokens = row['output_tokens']
+
+            # Extended: tool metrics
+            tool_metrics: Dict[str, Any] = {}
+            try:
+                if agent_id:
+                    cursor.execute(f"""
+                        SELECT data FROM {self._table('agent_run_events')}
+                        WHERE agent_id = %s AND event_type = 'tool_call'
+                    """, [agent_id])
+                else:
+                    cursor.execute(f"""
+                        SELECT data FROM {self._table('agent_run_events')}
+                        WHERE event_type = 'tool_call'
+                    """)
+                for row in cursor.fetchall():
+                    data_str = row.get("data")
+                    if not data_str:
+                        continue
+                    try:
+                        d = json.loads(data_str) if isinstance(data_str, str) else data_str
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+                    tname = d.get("tool_name", "unknown")
+                    if tname not in tool_metrics:
+                        tool_metrics[tname] = {"call_count": 0, "total_latency_ms": 0, "error_count": 0}
+                    tool_metrics[tname]["call_count"] += 1
+                    tool_metrics[tname]["total_latency_ms"] += d.get("latency_ms", 0)
+                    if d.get("error"):
+                        tool_metrics[tname]["error_count"] += 1
+                for tname in tool_metrics:
+                    calls = tool_metrics[tname]["call_count"]
+                    tool_metrics[tname]["avg_latency_ms"] = (
+                        round(tool_metrics[tname]["total_latency_ms"] / calls, 2) if calls else 0
+                    )
+            except Exception:
+                pass
+
+            # Extended: latency percentiles
+            latency_values: list[float] = []
+            try:
+                cursor.execute(f"""
+                    SELECT latency_ms FROM {self._table('agent_llm_usage')}
+                    {agent_filter}
+                """, params)
+                for row in cursor.fetchall():
+                    val = row.get("latency_ms")
+                    if val is not None:
+                        latency_values.append(float(val))
+            except Exception:
+                pass
+            latency_percentiles = self._compute_percentiles(latency_values)
+
+            # Token efficiency
+            token_efficiency = (
+                round(total_output_tokens / total_input_tokens, 4)
+                if total_input_tokens > 0 else 0
+            )
+            avg_input_per_call = (
+                round(total_input_tokens / total_llm_calls, 2)
+                if total_llm_calls > 0 else 0
+            )
+            avg_output_per_call = (
+                round(total_output_tokens / total_llm_calls, 2)
+                if total_llm_calls > 0 else 0
+            )
 
             return {
                 "total_runs": total_runs,
                 "completed_runs": completed_runs,
                 "error_runs": error_runs,
                 "avg_iterations": round(float(avg_iterations), 2),
-                "total_llm_calls": row['count'],
-                "total_input_tokens": row['input_tokens'],
-                "total_output_tokens": row['output_tokens'],
+                "total_llm_calls": total_llm_calls,
+                "total_input_tokens": total_input_tokens,
+                "total_output_tokens": total_output_tokens,
+                # Extended analytics
+                "tool_metrics": tool_metrics,
+                "latency_percentiles": latency_percentiles,
+                "token_efficiency": token_efficiency,
+                "avg_input_tokens_per_call": avg_input_per_call,
+                "avg_output_tokens_per_call": avg_output_per_call,
             }
 
     def close(self) -> None:

@@ -4,6 +4,7 @@ In-memory persistence implementation.
 Useful for testing and development. All data is lost when the process ends.
 """
 
+import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
@@ -153,11 +154,29 @@ class InMemoryPersistence(BasePersistence):
 
     # ==================== Statistics ====================
 
+    @staticmethod
+    def _compute_percentiles(values: list[float], percentiles: list[int] | None = None) -> Dict[str, float]:
+        """Compute percentile values from a list of numbers."""
+        if not values:
+            return {}
+        if percentiles is None:
+            percentiles = [50, 75, 90, 95, 99]
+        values_sorted = sorted(values)
+        n = len(values_sorted)
+        result = {}
+        for p in percentiles:
+            idx = (p / 100) * (n - 1)
+            lower = int(idx)
+            upper = min(lower + 1, n - 1)
+            weight = idx - lower
+            result[f"p{p}"] = round(values_sorted[lower] * (1 - weight) + values_sorted[upper] * weight, 2)
+        return result
+
     def get_agent_run_stats(
         self,
         agent_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Get statistics for agent runs."""
+        """Get statistics for agent runs, including extended analytics."""
         runs = list(self._runs.values())
 
         if agent_id:
@@ -178,6 +197,52 @@ class InMemoryPersistence(BasePersistence):
         total_input_tokens = sum(u.input_tokens or 0 for u in llm_usage)
         total_output_tokens = sum(u.output_tokens or 0 for u in llm_usage)
 
+        # Extended: tool metrics from events
+        tool_metrics: Dict[str, Any] = {}
+        all_events: List[AgentRunEvent] = []
+        for events_list in self._events.values():
+            all_events.extend(events_list)
+        if agent_id:
+            all_events = [e for e in all_events if e.agent_id == agent_id]
+
+        for evt in all_events:
+            if evt.event_type != "tool_call" or not evt.data:
+                continue
+            try:
+                d = json.loads(evt.data)
+            except (json.JSONDecodeError, TypeError):
+                continue
+            tname = d.get("tool_name", "unknown")
+            if tname not in tool_metrics:
+                tool_metrics[tname] = {"call_count": 0, "total_latency_ms": 0, "error_count": 0}
+            tool_metrics[tname]["call_count"] += 1
+            tool_metrics[tname]["total_latency_ms"] += d.get("latency_ms", 0)
+            if d.get("error"):
+                tool_metrics[tname]["error_count"] += 1
+        for tname in tool_metrics:
+            calls = tool_metrics[tname]["call_count"]
+            tool_metrics[tname]["avg_latency_ms"] = (
+                round(tool_metrics[tname]["total_latency_ms"] / calls, 2) if calls else 0
+            )
+
+        # Extended: latency percentiles
+        latency_values = [float(u.latency_ms) for u in llm_usage if u.latency_ms]
+        latency_percentiles = self._compute_percentiles(latency_values)
+
+        # Token efficiency
+        token_efficiency = (
+            round(total_output_tokens / total_input_tokens, 4)
+            if total_input_tokens > 0 else 0
+        )
+        avg_input_per_call = (
+            round(total_input_tokens / total_llm_calls, 2)
+            if total_llm_calls > 0 else 0
+        )
+        avg_output_per_call = (
+            round(total_output_tokens / total_llm_calls, 2)
+            if total_llm_calls > 0 else 0
+        )
+
         return {
             "total_runs": total_runs,
             "completed_runs": completed_runs,
@@ -186,6 +251,12 @@ class InMemoryPersistence(BasePersistence):
             "total_llm_calls": total_llm_calls,
             "total_input_tokens": total_input_tokens,
             "total_output_tokens": total_output_tokens,
+            # Extended analytics
+            "tool_metrics": tool_metrics,
+            "latency_percentiles": latency_percentiles,
+            "token_efficiency": token_efficiency,
+            "avg_input_tokens_per_call": avg_input_per_call,
+            "avg_output_tokens_per_call": avg_output_per_call,
         }
 
     # ==================== Optional Methods ====================

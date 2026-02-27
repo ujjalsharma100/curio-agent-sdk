@@ -1,7 +1,8 @@
 """
 Testing utilities for the Curio Agent SDK.
 
-Provides mock LLM clients and test harnesses for deterministic agent testing.
+Provides mock LLM clients, test harnesses, evaluation suites, and
+regression detection for deterministic agent testing.
 
 Example:
     from curio_agent_sdk.testing import MockLLM, AgentTestHarness, text_response
@@ -20,10 +21,38 @@ Example:
 
 from curio_agent_sdk.testing.mock_llm import MockLLM, text_response, tool_call_response
 from curio_agent_sdk.testing.harness import AgentTestHarness
+from curio_agent_sdk.testing.eval import (
+    AgentEvalSuite,
+    EvalDataset,
+    EvalCase,
+    EvalResult,
+    EvalSuiteResult,
+    exact_match,
+    contains_match,
+    tool_call_match,
+    token_efficiency,
+)
+from curio_agent_sdk.testing.regression import (
+    RegressionDetector,
+    RegressionReport,
+)
 
 __all__ = [
     "MockLLM",
     "AgentTestHarness",
     "text_response",
     "tool_call_response",
+    # Eval suite
+    "AgentEvalSuite",
+    "EvalDataset",
+    "EvalCase",
+    "EvalResult",
+    "EvalSuiteResult",
+    "exact_match",
+    "contains_match",
+    "tool_call_match",
+    "token_efficiency",
+    # Regression
+    "RegressionDetector",
+    "RegressionReport",
 ]
