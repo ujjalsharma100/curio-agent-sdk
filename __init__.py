@@ -65,6 +65,9 @@ from curio_agent_sdk.middleware.guardrails import GuardrailsMiddleware, Guardrai
 # Human-in-the-loop
 from curio_agent_sdk.core.human_input import HumanInputHandler, CLIHumanInput
 
+# CLI harness
+from curio_agent_sdk.core.cli import AgentCLI
+
 # Permissions / sandbox
 from curio_agent_sdk.core.permissions import (
     PermissionResult,
@@ -200,6 +203,7 @@ __all__ = [
     "AgentBuilder",
     "AgentState",
     "StateExtension",
+    "AgentCLI",
     "Tool",
     "tool",
     "ToolConfig",
