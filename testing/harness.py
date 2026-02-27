@@ -5,7 +5,7 @@ Test harness for running agents with deterministic mock LLMs.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, Sequence
 
 from curio_agent_sdk.core.agent import Agent
 from curio_agent_sdk.core.tools.executor import ToolResult
@@ -131,6 +131,67 @@ class AgentTestHarness:
                 return future.result()
         except RuntimeError:
             return asyncio.run(self.run(input, **kwargs))
+
+    async def run_conversation(
+        self,
+        inputs: Sequence[str],
+        *,
+        session_id: str | None = None,
+        **kwargs: Any,
+    ) -> list[AgentRunResult]:
+        """
+        Run a multi-turn conversation against the agent with a persistent session.
+
+        Args:
+            inputs: Sequence of user messages for each turn.
+            session_id: Optional explicit session ID. If omitted, a unique
+                test session ID is generated.
+            **kwargs: Extra keyword arguments forwarded to Agent.arun()
+                (e.g., context, max_iterations, response_format).
+
+        Returns:
+            List of AgentRunResult objects, one per turn.
+        """
+        if not inputs:
+            return []
+
+        if session_id is None:
+            import uuid
+            session_id = f"test-session-{uuid.uuid4().hex[:8]}"
+
+        # Reset per-run tracking
+        self._tool_calls.clear()
+        if self.tool_kit is not None:
+            self.tool_kit.clear_calls()
+
+        results: list[AgentRunResult] = []
+        for text in inputs:
+            result = await self.agent.arun(text, session_id=session_id, **kwargs)
+            self.result = result
+            results.append(result)
+        return results
+
+    def run_conversation_sync(
+        self,
+        inputs: Sequence[str],
+        *,
+        session_id: str | None = None,
+        **kwargs: Any,
+    ) -> list[AgentRunResult]:
+        """
+        Synchronous wrapper around run_conversation().
+        """
+        try:
+            asyncio.get_running_loop()
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                future = pool.submit(
+                    asyncio.run,
+                    self.run_conversation(inputs, session_id=session_id, **kwargs),
+                )
+                return future.result()
+        except RuntimeError:
+            return asyncio.run(self.run_conversation(inputs, session_id=session_id, **kwargs))
 
     @property
     def tool_calls(self) -> list[tuple[str, dict[str, Any]]]:

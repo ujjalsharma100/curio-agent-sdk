@@ -22,6 +22,7 @@ Example:
 from curio_agent_sdk.testing.mock_llm import MockLLM, text_response, tool_call_response
 from curio_agent_sdk.testing.harness import AgentTestHarness
 from curio_agent_sdk.testing.toolkit import ToolTestKit
+from curio_agent_sdk.testing.integration import MultiAgentTestHarness
 from curio_agent_sdk.testing.eval import (
     AgentEvalSuite,
     EvalDataset,
@@ -42,6 +43,7 @@ __all__ = [
     "MockLLM",
     "AgentTestHarness",
     "ToolTestKit",
+    "MultiAgentTestHarness",
     "text_response",
     "tool_call_response",
     # Eval suite
