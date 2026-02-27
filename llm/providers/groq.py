@@ -105,6 +105,36 @@ class GroqProvider(LLMProvider):
             messages.append(m)
         return messages
 
+    def _build_prompt_cache_key(self, request: LLMRequest) -> str:
+        """
+        Build a stable cache key for Groq prompt caching based on system prompts and tools.
+
+        Groq's OpenAI-compatible API supports prompt caching; we pass a prompt_cache_key
+        to improve routing and cache hit rates when many requests share the same prefix.
+        """
+        system_text = [m.text for m in request.messages if m.role == "system"]
+        tools_schema = []
+        if request.tools:
+            for t in request.tools:
+                tools_schema.append(
+                    {
+                        "name": t.name,
+                        "description": t.description,
+                        "parameters": t.parameters,
+                    }
+                )
+        payload = json.dumps(
+            {
+                "system": system_text,
+                "tools": tools_schema,
+            },
+            sort_keys=True,
+            default=str,
+        )
+        import hashlib
+
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
     async def call(
         self,
         request: LLMRequest,
@@ -133,6 +163,15 @@ class GroqProvider(LLMProvider):
                 params["response_format"] = request.response_format
             if request.stop:
                 params["stop"] = request.stop
+
+            # Prompt caching: Groq's OpenAI-compatible API supports prompt caching via
+            # prompt_cache_key, similar to OpenAI.
+            cache_key = getattr(request, "prompt_cache_key", None)
+            if getattr(request, "prompt_cache", False):
+                if not cache_key:
+                    cache_key = self._build_prompt_cache_key(request)
+            if cache_key:
+                params["prompt_cache_key"] = cache_key
 
             response = await client.chat.completions.create(**params)
             latency_ms = int((time.monotonic() - start) * 1000)
@@ -201,6 +240,14 @@ class GroqProvider(LLMProvider):
                 params["tools"] = [t.to_openai_format() for t in request.tools]
             if request.stop:
                 params["stop"] = request.stop
+
+            # Prompt caching for streaming responses as well
+            cache_key = getattr(request, "prompt_cache_key", None)
+            if getattr(request, "prompt_cache", False):
+                if not cache_key:
+                    cache_key = self._build_prompt_cache_key(request)
+            if cache_key:
+                params["prompt_cache_key"] = cache_key
 
             stream = await client.chat.completions.create(**params)
             current_tool_calls: dict[int, dict] = {}

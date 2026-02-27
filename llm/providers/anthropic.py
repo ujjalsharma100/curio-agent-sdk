@@ -165,6 +165,10 @@ class AnthropicProvider(LLMProvider):
             elif rf.get("type") == "json_object":
                 params["output_config"] = {"format": {"type": "json_object"}}
 
+        # Prompt caching (automatic cache_control at top level)
+        if getattr(request, "prompt_cache", False):
+            params["cache_control"] = {"type": "ephemeral"}
+
         return params
 
     def _parse_response(self, response, model: str, latency_ms: int) -> LLMResponse:

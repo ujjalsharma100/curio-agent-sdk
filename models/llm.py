@@ -136,6 +136,9 @@ class LLMRequest:
     provider: str | None = None  # Override provider selection
     tier: str | None = None  # Use tiered routing
     metadata: dict[str, Any] = field(default_factory=dict)  # Pass-through metadata
+    # Prompt caching hints (optional; providers may ignore if unsupported)
+    prompt_cache: bool = False
+    prompt_cache_key: str | None = None
 
 
 @dataclass

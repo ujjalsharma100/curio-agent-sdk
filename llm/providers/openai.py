@@ -114,6 +114,36 @@ class OpenAIProvider(LLMProvider):
             return None
         return [t.to_openai_format() for t in request.tools]
 
+    def _build_prompt_cache_key(self, request: LLMRequest) -> str:
+        """
+        Build a stable cache key for prompt caching based on system prompts and tools.
+
+        This is used for OpenAI's prompt_cache_key parameter to improve routing and
+        cache hit rates when many requests share the same long prefix.
+        """
+        system_text = [m.text for m in request.messages if m.role == "system"]
+        tools_schema = []
+        if request.tools:
+            for t in request.tools:
+                tools_schema.append(
+                    {
+                        "name": t.name,
+                        "description": t.description,
+                        "parameters": t.parameters,
+                    }
+                )
+        payload = json.dumps(
+            {
+                "system": system_text,
+                "tools": tools_schema,
+            },
+            sort_keys=True,
+            default=str,
+        )
+        import hashlib
+
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
     def _parse_response(self, response, provider: str, model: str, latency_ms: int) -> LLMResponse:
         """Parse OpenAI response into our LLMResponse."""
         choice = response.choices[0]
@@ -196,6 +226,15 @@ class OpenAIProvider(LLMProvider):
             if request.stop:
                 params["stop"] = request.stop
 
+            # Prompt caching: OpenAI automatically caches long prefixes; prompt_cache_key
+            # helps route related requests to the same cache.
+            cache_key = getattr(request, "prompt_cache_key", None)
+            if getattr(request, "prompt_cache", False):
+                if not cache_key:
+                    cache_key = self._build_prompt_cache_key(request)
+            if cache_key:
+                params["prompt_cache_key"] = cache_key
+
             response = await client.chat.completions.create(**params)
             latency_ms = int((time.monotonic() - start) * 1000)
 
@@ -239,6 +278,14 @@ class OpenAIProvider(LLMProvider):
 
             if request.stop:
                 params["stop"] = request.stop
+
+            # Prompt caching for streaming responses as well
+            cache_key = getattr(request, "prompt_cache_key", None)
+            if getattr(request, "prompt_cache", False):
+                if not cache_key:
+                    cache_key = self._build_prompt_cache_key(request)
+            if cache_key:
+                params["prompt_cache_key"] = cache_key
 
             stream = await client.chat.completions.create(**params)
 
