@@ -50,6 +50,18 @@ class Middleware(ABC):
         """Called after each LLM call. Can modify the response."""
         return response
 
+    async def on_llm_stream_chunk(
+        self,
+        request: LLMRequest,
+        chunk: LLMStreamChunk,
+    ) -> LLMStreamChunk | None:
+        """
+        Called for each chunk in a streaming LLM call.
+
+        Return the (possibly modified) chunk, or None to drop it.
+        """
+        return chunk
+
     async def before_tool_call(self, tool_name: str, args: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         """Called before each tool call. Can modify tool name and args."""
         return tool_name, args
@@ -134,6 +146,30 @@ class MiddlewarePipeline:
             await self.hook_registry.emit(LLM_CALL_AFTER, ctx)
             response = ctx.data.get("response", response)
         return response
+
+    async def run_stream_chunk(
+        self,
+        request: LLMRequest,
+        chunk: LLMStreamChunk,
+        run_id: str | None = None,
+        agent_id: str | None = None,
+    ) -> LLMStreamChunk | None:
+        """
+        Run per-chunk stream hooks in order for streaming LLM calls.
+
+        Middleware can modify or drop chunks (by returning None).
+        """
+        for mw in self.middleware:
+            try:
+                chunk = await mw.on_llm_stream_chunk(request, chunk)
+                if chunk is None:
+                    return None
+            except Exception as e:
+                logger.error(
+                    f"Middleware {mw.__class__.__name__}.on_llm_stream_chunk failed: {e}"
+                )
+                raise
+        return chunk
 
     async def run_before_tool(self, tool_name: str, args: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         """Run all before_tool_call hooks in order."""
@@ -242,7 +278,83 @@ class _MiddlewareWrappedLLMClient:
         run_id: str | None = None,
         agent_id: str | None = None,
     ) -> AsyncIterator[LLMStreamChunk]:
-        """Streaming LLM call with before-hook (after-hook not applied to streams)."""
-        request = await self._pipeline.run_before_llm(request)
-        async for chunk in self._inner.stream(request, run_id=run_id, agent_id=agent_id):
-            yield chunk
+        """
+        Streaming LLM call with before/after hooks and per-chunk middleware.
+
+        - Runs before_llm_call hooks and llm.call.before hooks once at start
+        - Runs on_llm_stream_chunk for each chunk (middleware can modify/drop)
+        - Aggregates a synthetic LLMResponse at the end and runs after_llm_call
+        """
+        from curio_agent_sdk.models.llm import LLMResponse, Message, TokenUsage
+
+        # Apply before-call middleware and hooks
+        request = await self._pipeline.run_before_llm(
+            request,
+            run_id=run_id,
+            agent_id=agent_id,
+        )
+
+        # Aggregate stream into a synthetic response for after_llm_call
+        text_parts: list[str] = []
+        tool_calls: list[Any] = []
+        total_usage = TokenUsage()
+        finish_reason: str | None = None
+
+        try:
+            async for chunk in self._inner.stream(
+                request,
+                run_id=run_id,
+                agent_id=agent_id,
+            ):
+                # Per-chunk middleware (can modify or drop chunks)
+                processed = await self._pipeline.run_stream_chunk(
+                    request,
+                    chunk,
+                    run_id=run_id,
+                    agent_id=agent_id,
+                )
+                if processed is None:
+                    continue
+
+                # Aggregate basic information for synthetic response
+                if processed.type == "text_delta" and processed.text:
+                    text_parts.append(processed.text)
+                if processed.type == "tool_call_end" and processed.tool_call:
+                    tool_calls.append(processed.tool_call)
+                if processed.type in ("usage", "done") and processed.usage:
+                    total_usage.input_tokens += processed.usage.input_tokens
+                    total_usage.output_tokens += processed.usage.output_tokens
+                    total_usage.cache_read_tokens += processed.usage.cache_read_tokens
+                    total_usage.cache_write_tokens += processed.usage.cache_write_tokens
+                if processed.type == "done" and processed.finish_reason:
+                    finish_reason = processed.finish_reason
+
+                yield processed
+        except Exception as e:
+            # Stream-level error handling and hooks
+            result = await self._pipeline.run_on_error(
+                e,
+                {"phase": "llm_stream", "request": request},
+                run_id=run_id,
+                agent_id=agent_id,
+            )
+            if result is None:
+                # Error suppressed – end the stream silently
+                return
+            raise result
+        else:
+            # Run after-call middleware and hooks with a synthetic response
+            message = Message.assistant("".join(text_parts) if text_parts else "", tool_calls=tool_calls or None)
+            response = LLMResponse(
+                message=message,
+                usage=total_usage,
+                model=request.model or "",
+                provider=request.provider or "",
+                finish_reason=finish_reason or "stream",
+            )
+            await self._pipeline.run_after_llm(
+                request,
+                response,
+                run_id=run_id,
+                agent_id=agent_id,
+            )
