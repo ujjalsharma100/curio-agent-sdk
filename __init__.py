@@ -169,6 +169,11 @@ from curio_agent_sdk.core.task_manager import (
     TaskStatus,
     TaskInfo,
 )
+from curio_agent_sdk.core.plugins import (
+    Plugin,
+    apply_plugins_to_builder,
+    discover_plugins,
+)
 from curio_agent_sdk.tools.computer_use import ComputerUseToolkit
 from curio_agent_sdk.tools.browser import BrowserToolkit
 from curio_agent_sdk.mcp import (
@@ -347,4 +352,8 @@ __all__ = [
     "parse_structured_output",
     # Utilities
     "ContextManager",
+    # Plugin system
+    "Plugin",
+    "apply_plugins_to_builder",
+    "discover_plugins",
 ]

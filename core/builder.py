@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from curio_agent_sdk.llm.client import LLMClient
     from curio_agent_sdk.middleware.base import Middleware
     from curio_agent_sdk.models.events import AgentEvent
+    from curio_agent_sdk.core.plugins import Plugin
 
 logger = logging.getLogger(__name__)
 
@@ -446,6 +447,52 @@ class AgentBuilder:
         self._config["subagent_configs"][name] = config
         return self
 
+    # ── Plugins ──────────────────────────────────────────────────────
+
+    def plugin(self, plugin: "Plugin") -> AgentBuilder:
+        """
+        Register a single plugin on this builder.
+
+        Plugins are applied during build() via apply_plugins_to_builder(), which
+        wires their tools, hooks, middleware, skills, connectors, and instructions
+        into the Agent configuration.
+        """
+        if "plugins" not in self._config:
+            self._config["plugins"] = []
+        self._config["plugins"].append(plugin)
+        return self
+
+    def plugins(self, plugins: list["Plugin"]) -> AgentBuilder:
+        """
+        Register multiple plugins at once.
+
+        Example:
+            .plugins([GitPlugin(), WebSearchPlugin()])
+        """
+        if "plugins" not in self._config:
+            self._config["plugins"] = []
+        self._config["plugins"].extend(plugins)
+        return self
+
+    def discover_plugins(self, entry_point_group: str = "curio_plugins") -> AgentBuilder:
+        """
+        Discover and register plugins from installed packages via entry points.
+
+        Packages can expose plugins by defining entry points in their pyproject.toml:
+
+            [project.entry-points."curio_plugins"]
+            git = "my_package.plugins:GitPlugin"
+        """
+        from curio_agent_sdk.core.plugins import discover_plugins
+
+        discovered = discover_plugins(entry_point_group)
+        if not discovered:
+            return self
+        if "plugins" not in self._config:
+            self._config["plugins"] = []
+        self._config["plugins"].extend(discovered)
+        return self
+
     # ── Build ───────────────────────────────────────────────────────
 
     def build(self) -> Agent:
@@ -462,6 +509,12 @@ class AgentBuilder:
             InstructionLoader,
             load_instructions_from_file,
         )
+        from curio_agent_sdk.core.plugins import apply_plugins_to_builder
+        # Apply any registered plugins before freezing the config.
+        plugins = self._config.get("plugins") or []
+        if plugins:
+            apply_plugins_to_builder(self, plugins)
+
         config = dict(self._config)
         registry = config.get("hook_registry") or HookRegistry()
         for event, handler, priority in config.pop("hooks", []):

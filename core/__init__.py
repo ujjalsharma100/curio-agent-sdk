@@ -51,6 +51,11 @@ from curio_agent_sdk.core.permissions import (
     FileSandboxPolicy,
     NetworkSandboxPolicy,
 )
+from curio_agent_sdk.core.plugins import (
+    Plugin,
+    apply_plugins_to_builder,
+    discover_plugins,
+)
 
 __all__ = [
     "Agent",
@@ -97,4 +102,7 @@ __all__ = [
     "CompoundPolicy",
     "FileSandboxPolicy",
     "NetworkSandboxPolicy",
+    "Plugin",
+    "apply_plugins_to_builder",
+    "discover_plugins",
 ]
