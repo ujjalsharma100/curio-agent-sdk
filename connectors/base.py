@@ -8,11 +8,15 @@ to register connector tools with an agent and run lifecycle at startup/shutdown.
 
 from __future__ import annotations
 
-import os
-import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Mapping
+
+from curio_agent_sdk.core.credentials import (
+    CredentialResolver,
+    EnvCredentialResolver,
+    resolve_credential_mapping,
+)
 
 if TYPE_CHECKING:
     from curio_agent_sdk.core.tools.tool import Tool
@@ -25,37 +29,24 @@ class ConnectorResource:
 
     Content can be injected into the agent's system message at run start.
     """
+
     uri: str
     content: str
     mime_type: str = "text/plain"
 
 
-def resolve_credentials(credentials: dict[str, Any]) -> dict[str, Any]:
+def resolve_credentials(credentials: Mapping[str, Any]) -> dict[str, Any]:
     """
-    Resolve environment variable references in credential values.
+    Legacy helper for resolving environment variable references in credential values.
 
-    Values like "$VAR" or "${VAR}" are replaced with os.environ.get("VAR", "").
-    Use this to avoid hardcoding secrets (e.g. tokens, API keys).
+    This now routes through the pluggable ``CredentialResolver`` abstraction,
+    defaulting to ``EnvCredentialResolver`` so existing code keeps working:
+
+    - Values like ``\"$VAR\"`` or ``\"${VAR}\"`` are replaced with the result of
+      ``EnvCredentialResolver().resolve(\"VAR\")``.
+    - Nested mappings and lists are supported.
     """
-    def resolve(val: Any) -> Any:
-        if not isinstance(val, str):
-            return val
-        if not val or ("$" not in val):
-            return val
-        s = val.strip()
-        if s.startswith("${") and s.endswith("}"):
-            key = s[2:-1]
-            return os.environ.get(key, "")
-        if s.startswith("$") and re.match(r"^\$[A-Za-z_][A-Za-z0-9_]*$", s):
-            key = s[1:]
-            return os.environ.get(key, "")
-        # Partial substitution ${VAR} inside string
-        def repl(m: re.Match[str]) -> str:
-            key = m.group(1)
-            return os.environ.get(key, "")
-        return re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", repl, s)
-
-    return {k: resolve(v) for k, v in credentials.items()}
+    return resolve_credential_mapping(credentials, EnvCredentialResolver())
 
 
 class Connector(ABC):

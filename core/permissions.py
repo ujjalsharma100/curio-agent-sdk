@@ -12,6 +12,7 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 
 # Common argument names that may contain file paths or URLs (for policy introspection)
@@ -317,6 +318,17 @@ class NetworkSandboxPolicy(PermissionPolicy):
         return PermissionResult.allow()
 
     async def check_network_access(self, url: str, context: dict[str, Any]) -> PermissionResult:
+        # Basic URL validation to guard against schemes like javascript:, file:, etc.
+        try:
+            parsed = urlparse(url)
+        except Exception:
+            return PermissionResult.deny(f"Invalid URL: {url}")
+
+        if not parsed.scheme or parsed.scheme not in ("http", "https"):
+            return PermissionResult.deny(f"Disallowed URL scheme for: {url}")
+        if not parsed.netloc:
+            return PermissionResult.deny(f"Invalid URL host for: {url}")
+
         for pat in self._compiled:
             if isinstance(pat, re.Pattern):
                 if pat.search(url):

@@ -93,6 +93,34 @@ class BasePersistence(ABC, Component):
     def get_agent_run_stats(self, agent_id: str | None = None) -> dict[str, Any]:
         pass
 
+    # === Audit Logs (optional; tamper-evident chain) ===
+
+    def log_audit_event(self, event: Any) -> None:
+        """
+        Persist a structured audit log event.
+
+        Concrete implementations should store enough information to make the
+        log tamper-evident (e.g. hash chain via prev_hash/hash fields).
+        The event type is intentionally left generic here to avoid a hard
+        dependency on a specific audit model in the core layer.
+        """
+        # Default: no-op for backends that don't support audit logging.
+        return None
+
+    def get_audit_events(
+        self,
+        run_id: str | None = None,
+        agent_id: str | None = None,
+        limit: int = 100,
+    ) -> list[Any]:
+        """
+        Retrieve audit log events, optionally filtered by run_id / agent_id.
+
+        Concrete implementations should return backend-specific audit event
+        objects or dictionaries.
+        """
+        return []
+
     # === Lifecycle (sync; Component async methods wrap these) ===
 
     def initialize_schema(self) -> None:
@@ -134,3 +162,7 @@ class BasePersistence(ABC, Component):
 
     async def alog_llm_usage(self, usage: AgentLLMUsage) -> None:
         await asyncio.to_thread(self.log_llm_usage, usage)
+
+    async def alog_audit_event(self, event: Any) -> None:
+        """Async wrapper for log_audit_event."""
+        await asyncio.to_thread(self.log_audit_event, event)

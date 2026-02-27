@@ -205,3 +205,26 @@ class InMemoryPersistence(BasePersistence):
             "events": {k: [e.to_dict() for e in v] for k, v in self._events.items()},
             "llm_usage": [u.to_dict() for u in self._llm_usage],
         }
+
+    # ==================== Audit Logs ====================
+
+    def log_audit_event(self, event: Any) -> None:
+        """Log an in-memory audit event (non-tamper-resistant; testing only)."""
+        # Store on a synthetic attribute to avoid changing constructor signature.
+        if not hasattr(self, "_audit_events"):
+            self._audit_events: List[Dict[str, Any]] = []
+        self._audit_events.append(dict(event))
+
+    def get_audit_events(
+        self,
+        run_id: str | None = None,
+        agent_id: str | None = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """Return stored in-memory audit events."""
+        events: List[Dict[str, Any]] = list(getattr(self, "_audit_events", []))
+        if run_id is not None:
+            events = [e for e in events if e.get("run_id") == run_id]
+        if agent_id is not None:
+            events = [e for e in events if e.get("agent_id") == agent_id]
+        return events[:limit]

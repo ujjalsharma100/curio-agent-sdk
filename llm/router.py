@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Any
 
 from curio_agent_sdk.core.circuit_breaker import CircuitBreaker
+from curio_agent_sdk.core.credentials import CredentialResolver, EnvCredentialResolver
 
 logger = logging.getLogger(__name__)
 
@@ -199,6 +200,7 @@ class TieredRouter:
         max_retry_delay: float = 30.0,
         retry_on_rate_limit: bool = True,
         degradation_strategy: DegradationStrategy | None = None,
+        credential_resolver: CredentialResolver | None = None,
     ):
         """
         Initialize the router.
@@ -224,6 +226,10 @@ class TieredRouter:
         self.max_retry_delay = max_retry_delay
         self.retry_on_rate_limit = retry_on_rate_limit
         self.degradation_strategy = degradation_strategy or ResetAndRetry()
+        # Pluggable secret resolution for API keys (env, Vault, AWS, etc.)
+        self.credential_resolver: CredentialResolver | None = (
+            credential_resolver or EnvCredentialResolver()
+        )
 
         if not self.providers:
             self._load_providers_from_env()
@@ -238,8 +244,24 @@ class TieredRouter:
 
         self._load_tiers(custom_tiers)
 
+    def _get_secret(self, name: str) -> str | None:
+        """
+        Resolve a secret (API key) using the configured credential resolver.
+
+        Falls back to os.getenv when no resolver is configured or when
+        resolution fails.
+        """
+        try:
+            if self.credential_resolver is not None:
+                value = self.credential_resolver.resolve(name)
+                if value:
+                    return value
+        except Exception as e:  # pragma: no cover - best-effort logging
+            logger.warning("Credential resolver failed for %s: %s", name, e)
+        return os.getenv(name) or None
+
     def _load_providers_from_env(self):
-        """Load provider configurations from environment variables."""
+        """Load provider configurations from environment variables (and secrets)."""
         provider_defs = [
             ("openai", "OPENAI", "gpt-4o-mini"),
             ("anthropic", "ANTHROPIC", "claude-sonnet-4-6"),
@@ -273,20 +295,21 @@ class TieredRouter:
             )
 
     def _load_keys(self, prefix: str) -> list[ProviderKey]:
-        """Load API keys: single key + numbered keys."""
-        keys = []
-        single = os.getenv(f"{prefix}_API_KEY")
+        """Load API keys: single key + numbered keys via the credential resolver."""
+        keys: list[ProviderKey] = []
+        single = self._get_secret(f"{prefix}_API_KEY")
         if single:
             keys.append(ProviderKey(api_key=single, name="default"))
 
         i = 1
         while True:
-            key = os.getenv(f"{prefix}_API_KEY_{i}")
-            if not key:
+            key_value = self._get_secret(f"{prefix}_API_KEY_{i}")
+            if not key_value:
                 break
-            enabled = os.getenv(f"{prefix}_API_KEY_{i}_ENABLED", "true").lower() == "true"
+            enabled_env = os.getenv(f"{prefix}_API_KEY_{i}_ENABLED", "true")
+            enabled = enabled_env.lower() == "true"
             name = os.getenv(f"{prefix}_API_KEY_{i}_NAME", f"key{i}")
-            keys.append(ProviderKey(api_key=key, name=name, enabled=enabled))
+            keys.append(ProviderKey(api_key=key_value, name=name, enabled=enabled))
             i += 1
 
         return keys

@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from contextlib import contextmanager
 import logging
+import hashlib
 
 from curio_agent_sdk.persistence.base import BasePersistence
 from curio_agent_sdk.models.agent import AgentRun, AgentRunEvent, AgentLLMUsage
@@ -207,6 +208,33 @@ class PostgresPersistence(BasePersistence):
             cursor.execute(f"""
                 CREATE INDEX IF NOT EXISTS idx_usage_run_id
                 ON {self._table('agent_llm_usage')}(run_id)
+            """)
+
+            # Audit log table (tamper-evident hash chain)
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {self._table('audit_logs')} (
+                    id SERIAL PRIMARY KEY,
+                    agent_id VARCHAR(255),
+                    run_id VARCHAR(255),
+                    actor_type VARCHAR(50),
+                    actor_id VARCHAR(255),
+                    action VARCHAR(255),
+                    resource TEXT,
+                    resource_type VARCHAR(100),
+                    metadata JSONB,
+                    timestamp TIMESTAMP,
+                    prev_hash VARCHAR(128),
+                    hash VARCHAR(128),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_audit_run_id
+                ON {self._table('audit_logs')}(run_id)
+            """)
+            cursor.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_audit_agent_id
+                ON {self._table('audit_logs')}(agent_id)
             """)
 
             logger.info(f"PostgreSQL schema initialized: {self.schema}")
@@ -529,3 +557,135 @@ class PostgresPersistence(BasePersistence):
         except Exception as e:
             logger.error(f"PostgreSQL health check failed: {e}")
             return False
+
+    # ==================== Audit Logs ====================
+
+    def _compute_audit_hash(self, payload: Dict[str, Any], prev_hash: str | None) -> str:
+        data = {
+            **payload,
+            "prev_hash": prev_hash or "",
+        }
+        encoded = json.dumps(data, sort_keys=True, default=str).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def log_audit_event(self, event: Any) -> None:
+        """
+        Log a structured audit event.
+
+        Expected event shape (dict-like):
+            {
+                "agent_id": str | None,
+                "run_id": str | None,
+                "actor_type": "user" | "agent" | "system",
+                "actor_id": str | None,
+                "action": str,
+                "resource": str | None,
+                "resource_type": str | None,
+                "metadata": dict | None,
+                "timestamp": datetime | None,
+            }
+        """
+        data = dict(event)
+        agent_id = data.get("agent_id")
+        run_id = data.get("run_id")
+        actor_type = data.get("actor_type") or "agent"
+        actor_id = data.get("actor_id")
+        action = data.get("action") or ""
+        resource = data.get("resource")
+        resource_type = data.get("resource_type")
+        metadata = data.get("metadata") or {}
+        ts: datetime | None = data.get("timestamp")
+        timestamp = ts or datetime.now()
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute(
+                f"""
+                SELECT hash FROM {self._table('audit_logs')}
+                WHERE run_id = %s AND agent_id = %s
+                ORDER BY id DESC LIMIT 1
+                """,
+                (run_id, agent_id),
+            )
+            row = cursor.fetchone()
+            prev_hash = row["hash"] if row else None
+
+            payload = {
+                "agent_id": agent_id,
+                "run_id": run_id,
+                "actor_type": actor_type,
+                "actor_id": actor_id,
+                "action": action,
+                "resource": resource,
+                "resource_type": resource_type,
+                "metadata": metadata,
+                "timestamp": timestamp.isoformat(),
+            }
+            current_hash = self._compute_audit_hash(payload, prev_hash)
+
+            cursor.execute(
+                f"""
+                INSERT INTO {self._table('audit_logs')} (
+                    agent_id, run_id, actor_type, actor_id, action,
+                    resource, resource_type, metadata, timestamp,
+                    prev_hash, hash
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    agent_id,
+                    run_id,
+                    actor_type,
+                    actor_id,
+                    action,
+                    resource,
+                    resource_type,
+                    json.dumps(metadata, default=str),
+                    timestamp,
+                    prev_hash,
+                    current_hash,
+                ),
+            )
+
+    def get_audit_events(
+        self,
+        run_id: str | None = None,
+        agent_id: str | None = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve audit events, optionally filtered by run_id / agent_id."""
+        query = f"SELECT * FROM {self._table('audit_logs')} WHERE 1=1"
+        params: list[Any] = []
+        if run_id:
+            query += " AND run_id = %s"
+            params.append(run_id)
+        if agent_id:
+            query += " AND agent_id = %s"
+            params.append(agent_id)
+        query += " ORDER BY id DESC LIMIT %s"
+        params.append(limit)
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+        events: List[Dict[str, Any]] = []
+        for row in rows:
+            events.append(
+                {
+                    "id": row.get("id"),
+                    "agent_id": row.get("agent_id"),
+                    "run_id": row.get("run_id"),
+                    "actor_type": row.get("actor_type"),
+                    "actor_id": row.get("actor_id"),
+                    "action": row.get("action"),
+                    "resource": row.get("resource"),
+                    "resource_type": row.get("resource_type"),
+                    "metadata": row.get("metadata") or {},
+                    "timestamp": row.get("timestamp"),
+                    "prev_hash": row.get("prev_hash"),
+                    "hash": row.get("hash"),
+                    "created_at": row.get("created_at"),
+                }
+            )
+        return events

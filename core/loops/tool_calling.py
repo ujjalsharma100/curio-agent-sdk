@@ -97,6 +97,10 @@ class ToolCallingLoop(AgentLoop):
             temperature=self.temperature,
             tier=self.tier,
             response_format=response_format_dict,
+            metadata={
+                "agent_id": self.agent_id or "",
+                "run_id": self.run_id or "",
+            },
         )
 
         # Call LLM
@@ -166,6 +170,10 @@ class ToolCallingLoop(AgentLoop):
             temperature=self.temperature,
             tier=self.tier,
             response_format=response_format_dict,
+            metadata={
+                "agent_id": self.agent_id or "",
+                "run_id": self.run_id or "",
+            },
         )
 
         # Accumulate the full response for state tracking

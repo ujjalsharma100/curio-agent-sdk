@@ -14,6 +14,11 @@ from typing import TYPE_CHECKING, Any
 
 from curio_agent_sdk.core.component import Component
 from curio_agent_sdk.core.circuit_breaker import CircuitBreaker
+from curio_agent_sdk.core.credentials import (
+    CredentialResolver,
+    EnvCredentialResolver,
+    resolve_credential_mapping,
+)
 from curio_agent_sdk.connectors.base import Connector, ConnectorResource
 
 if TYPE_CHECKING:
@@ -41,10 +46,25 @@ class ConnectorBridge(Component):
         resolve_credentials: bool = True,
         circuit_breaker_max_failures: int = 3,
         circuit_breaker_recovery_seconds: float = 300.0,
+        credential_resolver: CredentialResolver | None = None,
     ):
+        """
+        Args:
+            connectors: Connector instances to manage.
+            tool_registry: Registry where connector tools will be registered.
+            resolve_credentials: When True, expand ``$VAR`` / ``${VAR}`` style
+                placeholders in connector ``_credentials`` using the configured
+                ``credential_resolver`` (defaults to environment variables).
+            circuit_breaker_max_failures: Failures before a connector is opened.
+            circuit_breaker_recovery_seconds: Cooldown before half-open.
+            credential_resolver: Optional pluggable resolver for secrets
+                (Vault, AWS Secrets Manager, etc.). When omitted,
+                ``EnvCredentialResolver`` is used.
+        """
         self.connectors = list(connectors)
         self.tool_registry = tool_registry
         self.resolve_credentials = resolve_credentials
+        self.credential_resolver = credential_resolver or EnvCredentialResolver()
         self._tool_names_added: list[str] = []
         # Per-connector circuit breakers keyed by connector name
         self._circuit_breakers: dict[str, CircuitBreaker] = {}
@@ -57,8 +77,6 @@ class ConnectorBridge(Component):
 
     async def startup(self) -> None:
         """Connect each connector and register its tools."""
-        from curio_agent_sdk.connectors.base import resolve_credentials as resolve_creds
-
         for conn in self.connectors:
             conn_name = conn.name or type(conn).__name__
             cb = CircuitBreaker(
@@ -68,8 +86,16 @@ class ConnectorBridge(Component):
             self._circuit_breakers[conn_name] = cb
             try:
                 creds = getattr(conn, "_credentials", None)
-                if creds is not None and self.resolve_credentials and isinstance(creds, dict):
-                    creds = resolve_creds(creds)
+                if (
+                    creds is not None
+                    and self.resolve_credentials
+                    and isinstance(creds, dict)
+                ):
+                    # Expand $VAR / ${VAR} references via the pluggable resolver.
+                    creds = resolve_credential_mapping(
+                        creds,
+                        self.credential_resolver,
+                    )
                 await conn.connect(credentials=creds)
                 cb.record_success()
                 tools = conn.get_tools()
