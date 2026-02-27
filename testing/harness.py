@@ -132,6 +132,16 @@ class AgentTestHarness:
         except RuntimeError:
             return asyncio.run(self.run(input, **kwargs))
 
+    def set_llm(self, llm: Any) -> None:
+        """
+        Replace the underlying LLM client used by the agent.
+
+        Useful for swapping in a ReplayLLMClient for deterministic tests.
+        """
+        self.mock_llm = llm  # type: ignore[assignment]
+        self.agent.llm = llm  # type: ignore[assignment]
+        self.agent._wire_loop()
+
     async def run_conversation(
         self,
         inputs: Sequence[str],
@@ -201,4 +211,4 @@ class AgentTestHarness:
     @property
     def llm_calls(self) -> int:
         """Number of LLM calls made."""
-        return self.mock_llm.call_count
+        return getattr(self.mock_llm, "call_count", 0)
