@@ -20,7 +20,7 @@ from curio_agent_sdk.models.llm import (
     ToolCall,
     TokenUsage,
 )
-from curio_agent_sdk.exceptions import (
+from curio_agent_sdk.models.exceptions import (
     LLMRateLimitError,
     LLMAuthenticationError,
     LLMProviderError,

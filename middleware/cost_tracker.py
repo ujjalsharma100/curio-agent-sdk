@@ -12,7 +12,7 @@ from typing import Any
 
 from curio_agent_sdk.middleware.base import Middleware
 from curio_agent_sdk.models.llm import LLMRequest, LLMResponse
-from curio_agent_sdk.exceptions import CostBudgetExceeded
+from curio_agent_sdk.models.exceptions import CostBudgetExceeded
 
 logger = logging.getLogger(__name__)
 

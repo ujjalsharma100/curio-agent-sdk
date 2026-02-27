@@ -26,7 +26,7 @@ from curio_agent_sdk.models.llm import (
     LLMResponse,
     LLMStreamChunk,
 )
-from curio_agent_sdk.exceptions import (
+from curio_agent_sdk.models.exceptions import (
     LLMError,
     LLMRateLimitError,
     LLMProviderError,

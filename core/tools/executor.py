@@ -17,7 +17,7 @@ from typing import Any, TYPE_CHECKING
 
 from curio_agent_sdk.core.tools.registry import ToolRegistry
 from curio_agent_sdk.models.llm import Message, ToolCall
-from curio_agent_sdk.exceptions import ToolError, ToolNotFoundError
+from curio_agent_sdk.models.exceptions import ToolError, ToolNotFoundError
 
 if TYPE_CHECKING:
     from curio_agent_sdk.core.human_input import HumanInputHandler

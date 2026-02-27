@@ -11,7 +11,7 @@ import re
 from typing import Any, Callable
 
 from curio_agent_sdk.middleware.base import Middleware
-from curio_agent_sdk.exceptions import CurioError
+from curio_agent_sdk.models.exceptions import CurioError
 from curio_agent_sdk.models.llm import LLMRequest, LLMResponse
 
 logger = logging.getLogger(__name__)

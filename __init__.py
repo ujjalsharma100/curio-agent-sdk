@@ -135,7 +135,7 @@ from curio_agent_sdk.core.state_store import (
 )
 
 # Exceptions
-from curio_agent_sdk.exceptions import (
+from curio_agent_sdk.models.exceptions import (
     CurioError,
     LLMError,
     LLMRateLimitError,

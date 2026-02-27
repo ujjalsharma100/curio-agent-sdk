@@ -77,14 +77,14 @@ class Tool:
                     timeout=self.config.timeout,
                 )
             except asyncio.TimeoutError:
-                from curio_agent_sdk.exceptions import ToolTimeoutError
+                from curio_agent_sdk.models.exceptions import ToolTimeoutError
                 last_error = ToolTimeoutError(self.name, self.config.timeout)
                 if attempt == self.config.max_retries:
                     raise last_error
             except Exception as e:
                 last_error = e
                 if attempt == self.config.max_retries:
-                    from curio_agent_sdk.exceptions import ToolExecutionError
+                    from curio_agent_sdk.models.exceptions import ToolExecutionError
                     raise ToolExecutionError(self.name, e)
 
             # Exponential backoff before retry

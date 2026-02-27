@@ -178,7 +178,7 @@ class MCPClient:
                     texts.append(str(item["text"]))
         out = "\n".join(texts).strip() if texts else str(result)
         if is_error:
-            from curio_agent_sdk.exceptions import ToolExecutionError
+            from curio_agent_sdk.models.exceptions import ToolExecutionError
             raise ToolExecutionError(name, RuntimeError(out))
         # Also return structuredContent if present (e.g. for JSON output)
         if "structuredContent" in result:

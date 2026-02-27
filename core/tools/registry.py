@@ -9,7 +9,7 @@ from typing import Callable
 from curio_agent_sdk.core.tools.tool import Tool
 from curio_agent_sdk.core.tools.schema import ToolSchema
 from curio_agent_sdk.models.llm import ToolSchema as LLMToolSchema
-from curio_agent_sdk.exceptions import ToolNotFoundError
+from curio_agent_sdk.models.exceptions import ToolNotFoundError
 
 
 class ToolRegistry:

@@ -140,3 +140,4 @@ class MaxIterationsError(AgentError):
 class ConfigError(CurioError):
     """Configuration error."""
     pass
+

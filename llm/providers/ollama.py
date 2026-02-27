@@ -20,7 +20,7 @@ from curio_agent_sdk.models.llm import (
     ToolCall,
     TokenUsage,
 )
-from curio_agent_sdk.exceptions import LLMProviderError
+from curio_agent_sdk.models.exceptions import LLMProviderError
 
 logger = logging.getLogger(__name__)
 
