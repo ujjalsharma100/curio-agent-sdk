@@ -152,7 +152,7 @@ For refactor stages that change module paths, the main import dependencies are:
 
 ---
 
-## Stage 4: Move CLI out of core to top-level cli/
+## Stage 4: Move CLI out of core to top-level cli/ ✅ COMPLETED
 
 **Goal:** `core/cli.py` → top-level `cli/cli.py` (or `cli/__init__.py` exposing `AgentCLI`).
 
@@ -179,6 +179,8 @@ For refactor stages that change module paths, the main import dependencies are:
    - Tests and smoke: `from curio_agent_sdk import AgentCLI`.
 
 **Deliverable:** CLI is at top-level `cli/`; core no longer contains CLI; tests pass.
+
+**Stage 4 note:** Created `cli/` under `src/curio_agent_sdk/`; moved `core/cli.py` → `cli/cli.py` via `mv`. Added `cli/__init__.py` re-exporting `AgentCLI`. Root `__init__.py` now imports `AgentCLI` from `curio_agent_sdk.cli`. `core/__init__.py` did not export CLI; no change. Imports in `cli/cli.py` unchanged (still `core.agent`, `core.session`, `core.human_input`). Package discovery via `where = ["src"]` picks up `curio_agent_sdk.cli`. Smoke: `pip install -e .` in venv then `from curio_agent_sdk import AgentCLI`.
 
 ---
 

@@ -82,7 +82,7 @@ from curio_agent_sdk.middleware.prometheus import PrometheusExporter
 from curio_agent_sdk.core.human_input import HumanInputHandler, CLIHumanInput
 
 # CLI harness
-from curio_agent_sdk.core.cli import AgentCLI
+from curio_agent_sdk.cli import AgentCLI
 
 # Permissions / sandbox
 from curio_agent_sdk.core.permissions import (
