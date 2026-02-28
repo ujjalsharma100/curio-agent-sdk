@@ -30,7 +30,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Callable, Awaitable, TYPE_CHECKING
 
-from curio_agent_sdk.core.component import Component
+from curio_agent_sdk.base import Component
 from curio_agent_sdk.models.events import AgentEvent, EventType
 
 if TYPE_CHECKING:

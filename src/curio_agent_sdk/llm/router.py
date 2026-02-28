@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from curio_agent_sdk.core.circuit_breaker import CircuitBreaker
-from curio_agent_sdk.core.credentials import CredentialResolver, EnvCredentialResolver
+from curio_agent_sdk.resilience import CircuitBreaker
+from curio_agent_sdk.credentials import CredentialResolver, EnvCredentialResolver
 
 logger = logging.getLogger(__name__)
 

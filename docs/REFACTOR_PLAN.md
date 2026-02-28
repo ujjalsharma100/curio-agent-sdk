@@ -85,7 +85,7 @@ For refactor stages that change module paths, the main import dependencies are:
 
 ---
 
-## Stage 2: Extract foundation packages (base, credentials, resilience)
+## Stage 2: Extract foundation packages (base, credentials, resilience) ✅ COMPLETED
 
 **Goal:** Move `Component` → `base/`, `credentials` → `credentials/`, `circuit_breaker` → `resilience/`. Update all imports.
 
@@ -116,6 +116,8 @@ For refactor stages that change module paths, the main import dependencies are:
    - `pip install -e .` and run tests; smoke import.
 
 **Deliverable:** `base`, `credentials`, `resilience` exist at top level; core no longer contains them; all imports updated; tests pass.
+
+**Stage 2 note:** Created `base/`, `credentials/`, `resilience/` under `src/curio_agent_sdk/`; moved `core/component.py` → `base/component.py`, `core/credentials.py` → `credentials/credentials.py`, `core/circuit_breaker.py` → `resilience/circuit_breaker.py`. Added package `__init__.py` re-exports. Updated all imports; `core/__init__.py` and root `__init__.py` re-export from new locations. Smoke import verified (`from curio_agent_sdk import Agent, LLMClient, Component, CircuitBreaker, CircuitState`).
 
 ---
 

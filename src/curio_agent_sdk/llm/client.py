@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator
 
-from curio_agent_sdk.core.component import Component
+from curio_agent_sdk.base import Component
 from curio_agent_sdk.llm.router import TieredRouter, RouteResult
 from curio_agent_sdk.llm.providers.base import LLMProvider
 from curio_agent_sdk.llm.providers.openai import OpenAIProvider

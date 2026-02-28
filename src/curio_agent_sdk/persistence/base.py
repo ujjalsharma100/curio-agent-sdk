@@ -14,7 +14,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Any
 
-from curio_agent_sdk.core.component import Component
+from curio_agent_sdk.base import Component
 from curio_agent_sdk.models.agent import AgentRun, AgentRunEvent, AgentLLMUsage
 
 

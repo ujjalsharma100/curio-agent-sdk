@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from curio_agent_sdk.core.component import Component
+from curio_agent_sdk.base import Component
 from curio_agent_sdk.core.state import AgentState
 from curio_agent_sdk.core.checkpoint import Checkpoint, _serialize_message, _deserialize_message
 

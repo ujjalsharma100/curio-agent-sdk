@@ -5,7 +5,7 @@ Contains the agent, loops, tools, and state management.
 """
 
 from curio_agent_sdk.core.agent import Agent
-from curio_agent_sdk.core.component import Component
+from curio_agent_sdk.base import Component
 from curio_agent_sdk.core.state import AgentState, StateExtension
 from curio_agent_sdk.core.tools import Tool, tool, ToolSchema, ToolRegistry, ToolExecutor
 from curio_agent_sdk.core.loops import AgentLoop, ToolCallingLoop
@@ -63,10 +63,7 @@ from curio_agent_sdk.core.event_bus import (
     EventFilter,
     DeadLetterEntry,
 )
-from curio_agent_sdk.core.circuit_breaker import (
-    CircuitBreaker,
-    CircuitState,
-)
+from curio_agent_sdk.resilience import CircuitBreaker, CircuitState
 
 __all__ = [
     "Agent",

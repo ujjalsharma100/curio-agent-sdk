@@ -15,7 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from curio_agent_sdk.core.component import Component
+from curio_agent_sdk.base import Component
 from curio_agent_sdk.memory.base import Memory, MemoryEntry
 
 logger = logging.getLogger(__name__)

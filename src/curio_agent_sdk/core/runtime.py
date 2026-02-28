@@ -16,7 +16,7 @@ import uuid
 from datetime import datetime
 from typing import Any, AsyncIterator, Callable, TYPE_CHECKING
 
-from curio_agent_sdk.core.component import Component
+from curio_agent_sdk.base import Component
 from curio_agent_sdk.core.context import ContextManager
 from curio_agent_sdk.core.hooks import (
     HookContext,

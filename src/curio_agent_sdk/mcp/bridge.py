@@ -11,8 +11,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from curio_agent_sdk.core.component import Component
-from curio_agent_sdk.core.circuit_breaker import CircuitBreaker
+from curio_agent_sdk.base import Component
+from curio_agent_sdk.resilience import CircuitBreaker
 from curio_agent_sdk.mcp.client import MCPClient
 from curio_agent_sdk.mcp.adapter import MCPToolAdapter
 from curio_agent_sdk.mcp.config import MCPServerConfig

@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Mapping
 
-from curio_agent_sdk.core.credentials import (
+from curio_agent_sdk.credentials import (
     CredentialResolver,
     EnvCredentialResolver,
     resolve_credential_mapping,

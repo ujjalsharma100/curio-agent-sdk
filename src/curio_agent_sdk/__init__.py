@@ -24,7 +24,7 @@ Quick start:
 
 # Core
 from curio_agent_sdk.core.agent import Agent
-from curio_agent_sdk.core.component import Component
+from curio_agent_sdk.base import Component
 from curio_agent_sdk.core.runtime import Runtime
 from curio_agent_sdk.core.builder import AgentBuilder
 from curio_agent_sdk.core.state import AgentState, StateExtension
@@ -189,10 +189,7 @@ from curio_agent_sdk.core.task_manager import (
     TaskInfo,
     RecoveredRun,
 )
-from curio_agent_sdk.core.circuit_breaker import (
-    CircuitBreaker,
-    CircuitState,
-)
+from curio_agent_sdk.resilience import CircuitBreaker, CircuitState
 from curio_agent_sdk.core.plugins import (
     Plugin,
     apply_plugins_to_builder,
