@@ -46,15 +46,15 @@ from curio_agent_sdk.core.loops.base import AgentLoop
 from curio_agent_sdk.core.loops.tool_calling import ToolCallingLoop
 
 # LLM
-from curio_agent_sdk.llm.client import LLMClient
-from curio_agent_sdk.llm.router import (
+from curio_agent_sdk.core.llm.client import LLMClient
+from curio_agent_sdk.core.llm.router import (
     TieredRouter,
     DegradationStrategy,
     ResetAndRetry,
     FallbackToLowerTier,
     RaiseError,
 )
-from curio_agent_sdk.llm.providers.base import LLMProvider
+from curio_agent_sdk.core.llm.providers.base import LLMProvider
 
 # Models
 from curio_agent_sdk.models.llm import Message, ToolCall, TokenUsage, LLMRequest, LLMResponse

@@ -34,7 +34,7 @@ from curio_agent_sdk.core.state import AgentState
 from curio_agent_sdk.core.tools.tool import Tool
 from curio_agent_sdk.core.tools.registry import ToolRegistry
 from curio_agent_sdk.core.tools.executor import ToolExecutor
-from curio_agent_sdk.llm.client import LLMClient
+from curio_agent_sdk.core.llm.client import LLMClient
 from curio_agent_sdk.models.llm import Message
 from curio_agent_sdk.models.agent import AgentRunResult
 from curio_agent_sdk.models.events import AgentEvent, EventType, StreamEvent
@@ -267,10 +267,10 @@ class Agent:
             self.llm = llm
         elif model:
             provider, _, model_name = model.partition(":")
-            from curio_agent_sdk.llm.router import TieredRouter
+            from curio_agent_sdk.core.llm.router import TieredRouter
             router = TieredRouter()
             if provider and model_name:
-                from curio_agent_sdk.llm.router import ModelPriority, TierConfig
+                from curio_agent_sdk.core.llm.router import ModelPriority, TierConfig
                 router.tiers[tier] = TierConfig(
                     name=tier,
                     model_priority=[ModelPriority(provider=provider, model=model_name)],

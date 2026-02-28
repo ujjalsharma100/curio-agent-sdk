@@ -19,7 +19,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from curio_agent_sdk.llm.client import LLMClient
+from curio_agent_sdk.core.llm.client import LLMClient
 from curio_agent_sdk.models.llm import LLMRequest, LLMResponse
 
 

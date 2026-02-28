@@ -13,7 +13,7 @@ from typing import AsyncIterator
 
 import httpx
 
-from curio_agent_sdk.llm.providers.base import LLMProvider
+from curio_agent_sdk.core.llm.providers.base import LLMProvider
 from curio_agent_sdk.models.llm import (
     LLMRequest,
     LLMResponse,

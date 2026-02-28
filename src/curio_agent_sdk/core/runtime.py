@@ -43,7 +43,7 @@ from curio_agent_sdk.core.skills import get_active_skill_prompts
 if TYPE_CHECKING:
     from curio_agent_sdk.memory.manager import MemoryManager
     from curio_agent_sdk.core.state_store import StateStore
-    from curio_agent_sdk.llm.client import LLMClient
+    from curio_agent_sdk.core.llm.client import LLMClient
     from curio_agent_sdk.core.skills import SkillRegistry
 
 from curio_agent_sdk.core.session import SessionManager

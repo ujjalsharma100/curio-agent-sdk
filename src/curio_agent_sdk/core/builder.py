@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from curio_agent_sdk.core.state_store import StateStore
     from curio_agent_sdk.core.human_input import HumanInputHandler
     from curio_agent_sdk.core.hooks import HookRegistry
-    from curio_agent_sdk.llm.client import LLMClient
+    from curio_agent_sdk.core.llm.client import LLMClient
     from curio_agent_sdk.middleware.base import Middleware
     from curio_agent_sdk.models.events import AgentEvent
     from curio_agent_sdk.core.plugins import Plugin

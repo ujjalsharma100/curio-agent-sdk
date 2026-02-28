@@ -184,7 +184,7 @@ For refactor stages that change module paths, the main import dependencies are:
 
 ---
 
-## Stage 5: Move llm into core
+## Stage 5: Move llm into core ✅ COMPLETED
 
 **Goal:** Top-level `llm/` → `core/llm/` (including `core/llm/providers/`).
 
@@ -211,6 +211,8 @@ For refactor stages that change module paths, the main import dependencies are:
    - Tests and smoke: `from curio_agent_sdk import LLMClient`, `from curio_agent_sdk import Agent`.
 
 **Deliverable:** LLM lives under `core/llm/`; root re-exports unchanged; tests pass.
+
+**Stage 5 note:** Moved `llm/` → `core/llm/` via `mv llm core/llm`. Updated all imports from `curio_agent_sdk.llm` to `curio_agent_sdk.core.llm` in: root `__init__.py`, `core/agent.py`, `core/builder.py`, `core/runtime.py`, `core/context.py`, `core/loops/tool_calling.py`, and all modules under `core/llm/` (`__init__.py`, `client.py`, `batch_client.py`, `providers/__init__.py`, `providers/openai.py`, `providers/anthropic.py`, `providers/groq.py`, `providers/ollama.py`). `core/llm/router.py` already used `curio_agent_sdk.resilience` and `curio_agent_sdk.credentials`; `core/llm/providers/base.py` and `core/llm/token_counter.py` only import from `models.llm`. Package discovery via `where = ["src"]` picks up `core/llm` and `core/llm/providers`; no pyproject.toml change required. Smoke: `pip install -e .` then `from curio_agent_sdk import Agent, LLMClient, Component`.
 
 ---
 
@@ -301,7 +303,7 @@ For refactor stages that change module paths, the main import dependencies are:
 | 2     | base, credentials, resilience  | 1          |
 | 3     | audit → persistence           | 1          |
 | 4     | CLI → top-level cli/          | 1          |
-| 5     | llm → core/llm                | 2          |
+| 5     | llm → core/llm                | 2          | ✅ |
 | 6     | core subpackages              | 2, 3, 4, 5 |
 | 7     | pyproject + docs              | 6          |
 

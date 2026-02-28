@@ -16,12 +16,12 @@ from dataclasses import dataclass, field
 from typing import Any, AsyncIterator
 
 from curio_agent_sdk.base import Component
-from curio_agent_sdk.llm.router import TieredRouter, RouteResult
-from curio_agent_sdk.llm.providers.base import LLMProvider
-from curio_agent_sdk.llm.providers.openai import OpenAIProvider
-from curio_agent_sdk.llm.providers.anthropic import AnthropicProvider
-from curio_agent_sdk.llm.providers.groq import GroqProvider
-from curio_agent_sdk.llm.providers.ollama import OllamaProvider
+from curio_agent_sdk.core.llm.router import TieredRouter, RouteResult
+from curio_agent_sdk.core.llm.providers.base import LLMProvider
+from curio_agent_sdk.core.llm.providers.openai import OpenAIProvider
+from curio_agent_sdk.core.llm.providers.anthropic import AnthropicProvider
+from curio_agent_sdk.core.llm.providers.groq import GroqProvider
+from curio_agent_sdk.core.llm.providers.ollama import OllamaProvider
 from curio_agent_sdk.models.llm import (
     LLMRequest,
     LLMResponse,

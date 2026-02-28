@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Callable, Literal
 
-from curio_agent_sdk.llm.token_counter import count_tokens as count_tokens_impl
+from curio_agent_sdk.core.llm.token_counter import count_tokens as count_tokens_impl
 from curio_agent_sdk.models.llm import Message
 
 logger = logging.getLogger(__name__)

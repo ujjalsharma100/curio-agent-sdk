@@ -18,7 +18,7 @@ from curio_agent_sdk.core.loops.base import AgentLoop
 from curio_agent_sdk.core.state import AgentState
 from curio_agent_sdk.core.tools.executor import ToolExecutor
 from curio_agent_sdk.core.tools.registry import ToolRegistry
-from curio_agent_sdk.llm.client import LLMClient
+from curio_agent_sdk.core.llm.client import LLMClient
 from curio_agent_sdk.models.llm import LLMRequest, Message
 from curio_agent_sdk.models.events import StreamEvent
 
