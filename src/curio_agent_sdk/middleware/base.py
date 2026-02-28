@@ -16,7 +16,7 @@ from typing import Any, AsyncIterator, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from curio_agent_sdk.models.llm import LLMRequest, LLMResponse, LLMStreamChunk
-    from curio_agent_sdk.core.hooks import HookRegistry, HookContext
+    from curio_agent_sdk.core.events import HookRegistry, HookContext
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ class MiddlewarePipeline:
     ) -> LLMRequest:
         """Run all before_llm_call hooks in order; emit llm.call.before if hook_registry set."""
         if self.hook_registry:
-            from curio_agent_sdk.core.hooks import HookContext, LLM_CALL_BEFORE
+            from curio_agent_sdk.core.events import HookContext, LLM_CALL_BEFORE
             ctx = HookContext(
                 event=LLM_CALL_BEFORE,
                 data={"request": request},
@@ -136,7 +136,7 @@ class MiddlewarePipeline:
                 logger.error(f"Middleware {mw.__class__.__name__}.after_llm_call failed: {e}")
                 raise
         if self.hook_registry:
-            from curio_agent_sdk.core.hooks import HookContext, LLM_CALL_AFTER
+            from curio_agent_sdk.core.events import HookContext, LLM_CALL_AFTER
             ctx = HookContext(
                 event=LLM_CALL_AFTER,
                 data={"request": request, "response": response},
@@ -200,7 +200,7 @@ class MiddlewarePipeline:
     ) -> Exception | None:
         """Run all on_error hooks; emit llm.call.error if hook_registry set. If any returns None, error is suppressed."""
         if self.hook_registry:
-            from curio_agent_sdk.core.hooks import HookContext, LLM_CALL_ERROR
+            from curio_agent_sdk.core.events import HookContext, LLM_CALL_ERROR
             ctx = HookContext(
                 event=LLM_CALL_ERROR,
                 data={**context, "error": str(error), "exception": error},

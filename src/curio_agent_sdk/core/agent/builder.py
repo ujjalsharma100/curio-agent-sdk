@@ -24,22 +24,22 @@ from pathlib import Path
 from typing import Any, Callable, TYPE_CHECKING
 
 from curio_agent_sdk.core.tools.tool import Tool
-from curio_agent_sdk.core.skills import Skill
+from curio_agent_sdk.core.extensions import Skill
 
 if TYPE_CHECKING:
-    from curio_agent_sdk.core.subagent import SubagentConfig
+    from curio_agent_sdk.core.extensions import SubagentConfig
 
 if TYPE_CHECKING:
     from curio_agent_sdk.core.agent import Agent
     from curio_agent_sdk.core.loops.base import AgentLoop
     from curio_agent_sdk.core.context import ContextManager
-    from curio_agent_sdk.core.state_store import StateStore
-    from curio_agent_sdk.core.human_input import HumanInputHandler
-    from curio_agent_sdk.core.hooks import HookRegistry
+    from curio_agent_sdk.core.state import StateStore
+    from curio_agent_sdk.core.security import HumanInputHandler
+    from curio_agent_sdk.core.events import HookRegistry
     from curio_agent_sdk.core.llm.client import LLMClient
     from curio_agent_sdk.middleware.base import Middleware
     from curio_agent_sdk.models.events import AgentEvent
-    from curio_agent_sdk.core.plugins import Plugin
+    from curio_agent_sdk.core.extensions import Plugin
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +213,7 @@ class AgentBuilder:
         Set the permission policy (allow/deny/ask for tool execution, file and network access).
 
         Example:
-            from curio_agent_sdk.core.permissions import AllowReadsAskWrites, AllowAll
+            from curio_agent_sdk.core.security import AllowReadsAskWrites, AllowAll
             .permissions(AllowReadsAskWrites())
             .permissions(AllowAll())
         """
@@ -232,7 +232,7 @@ class AgentBuilder:
         Set the session manager for multi-turn conversation sessions.
 
         Example:
-            from curio_agent_sdk.core.session import SessionManager, InMemorySessionStore
+            from curio_agent_sdk.core.state import SessionManager, InMemorySessionStore
             store = InMemorySessionStore()
             agent = Agent.builder() \\
                 .session_manager(SessionManager(store)) \\
@@ -415,7 +415,7 @@ class AgentBuilder:
         agent execution across processes or machines.
 
         Example:
-            from curio_agent_sdk.core.event_bus import InMemoryEventBus
+            from curio_agent_sdk.core.events import InMemoryEventBus
             bus = InMemoryEventBus()
             agent = Agent.builder().event_bus(bus).model("openai:gpt-4o").build()
 
@@ -502,7 +502,7 @@ class AgentBuilder:
             [project.entry-points."curio_plugins"]
             git = "my_package.plugins:GitPlugin"
         """
-        from curio_agent_sdk.core.plugins import discover_plugins
+        from curio_agent_sdk.core.extensions import discover_plugins
 
         discovered = discover_plugins(entry_point_group)
         if not discovered:
@@ -523,12 +523,12 @@ class AgentBuilder:
         (from .instructions() or .instructions_file()) are merged into system_prompt.
         """
         from curio_agent_sdk.core.agent import Agent
-        from curio_agent_sdk.core.hooks import HookRegistry
-        from curio_agent_sdk.core.instructions import (
+        from curio_agent_sdk.core.events import HookRegistry
+        from curio_agent_sdk.core.context import (
             InstructionLoader,
             load_instructions_from_file,
         )
-        from curio_agent_sdk.core.plugins import apply_plugins_to_builder
+        from curio_agent_sdk.core.extensions import apply_plugins_to_builder
         # Apply any registered plugins before freezing the config.
         plugins = self._config.get("plugins") or []
         if plugins:

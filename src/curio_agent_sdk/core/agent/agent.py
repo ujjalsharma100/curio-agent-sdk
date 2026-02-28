@@ -23,13 +23,13 @@ import logging
 import uuid
 from typing import Any, AsyncIterator, Callable, TYPE_CHECKING
 
-from curio_agent_sdk.core.builder import AgentBuilder
+from curio_agent_sdk.core.agent.builder import AgentBuilder
 from curio_agent_sdk.core.context import ContextManager
-from curio_agent_sdk.core.hooks import HookRegistry
-from curio_agent_sdk.core.skills import Skill, SkillRegistry
+from curio_agent_sdk.core.events import HookRegistry
+from curio_agent_sdk.core.extensions import Skill, SkillRegistry
 from curio_agent_sdk.core.loops.base import AgentLoop
 from curio_agent_sdk.core.loops.tool_calling import ToolCallingLoop
-from curio_agent_sdk.core.runtime import Runtime
+from curio_agent_sdk.core.agent.runtime import Runtime
 from curio_agent_sdk.core.state import AgentState
 from curio_agent_sdk.core.tools.tool import Tool
 from curio_agent_sdk.core.tools.registry import ToolRegistry
@@ -41,7 +41,7 @@ from curio_agent_sdk.models.events import AgentEvent, EventType, StreamEvent
 
 if TYPE_CHECKING:
     from curio_agent_sdk.memory.manager import MemoryManager
-    from curio_agent_sdk.core.state_store import StateStore
+    from curio_agent_sdk.core.state import StateStore
 
 logger = logging.getLogger(__name__)
 
@@ -168,13 +168,13 @@ class Agent:
         # ── Resolve instructions (direct construction) ─────────────────
         base_prompt = system_prompt
         if instruction_loader is not None:
-            from curio_agent_sdk.core.instructions import InstructionLoader
+            from curio_agent_sdk.core.context import InstructionLoader
             if isinstance(instruction_loader, InstructionLoader):
                 loaded = instruction_loader.load()
                 if loaded:
                     base_prompt = f"{base_prompt}\n\n---\n\n{loaded}"
         if instructions_file is not None:
-            from curio_agent_sdk.core.instructions import load_instructions_from_file
+            from curio_agent_sdk.core.context import load_instructions_from_file
             loaded = load_instructions_from_file(instructions_file)
             if loaded:
                 base_prompt = f"{base_prompt}\n\n---\n\n{loaded}"
@@ -210,7 +210,7 @@ class Agent:
         # ── Subagent orchestrator (optional) ─────────────────────────
         self.orchestrator = None
         if subagent_configs:
-            from curio_agent_sdk.core.subagent import AgentOrchestrator, SubagentConfig
+            from curio_agent_sdk.core.extensions import AgentOrchestrator, SubagentConfig
             self.orchestrator = AgentOrchestrator(self)
             for name, cfg in subagent_configs.items():
                 if not isinstance(cfg, SubagentConfig):
@@ -231,7 +231,7 @@ class Agent:
         self.plan_mode = plan_mode
         self.todo_manager = todo_manager
         if plan_mode is not None or todo_manager is not None or read_only_tool_names is not None:
-            from curio_agent_sdk.core.plan_mode import (
+            from curio_agent_sdk.core.workflow import (
                 PlanMode,
                 TodoManager,
                 get_plan_mode_tools,

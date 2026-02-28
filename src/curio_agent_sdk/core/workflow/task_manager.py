@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Awaitable
 
-from curio_agent_sdk.core.hooks import (
+from curio_agent_sdk.core.events import (
     HookContext,
     HookRegistry,
     AGENT_ITERATION_AFTER,

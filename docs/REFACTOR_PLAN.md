@@ -216,7 +216,7 @@ For refactor stages that change module paths, the main import dependencies are:
 
 ---
 
-## Stage 6: Restructure core into subpackages
+## Stage 6: Restructure core into subpackages ✅ COMPLETED
 
 **Goal:** Split the remaining flat modules in `core/` into subpackages: `agent`, `state`, `context`, `events`, `extensions`, `workflow`, `security`, and keep `loops` and `tools` as they are.
 
@@ -268,6 +268,8 @@ For refactor stages that change module paths, the main import dependencies are:
 
 **Deliverable:** Core is organized into subpackages; no more flat modules in core (except what’s inside subpackages); public API unchanged; tests pass.
 
+**Stage 6 note:** Subpackage dirs already had the moved modules. Added `__init__.py` to each subpackage; updated `core/__init__.py` and all internal imports to use new paths (`core.agent`, `core.state`, `core.context`, `core.events`, `core.extensions`, `core.workflow`, `core.security`). Public API unchanged. Verify with `pip install -e .` then smoke import (requires e.g. httpx).
+
 ---
 
 ## Stage 7: Finalize pyproject.toml and docs
@@ -304,7 +306,7 @@ For refactor stages that change module paths, the main import dependencies are:
 | 3     | audit → persistence           | 1          |
 | 4     | CLI → top-level cli/          | 1          |
 | 5     | llm → core/llm                | 2          | ✅ |
-| 6     | core subpackages              | 2, 3, 4, 5 |
+| 6     | core subpackages              | 2, 3, 4, 5 | ✅ |
 | 7     | pyproject + docs              | 6          |
 
 Stages 2, 3, and 4 can be done in parallel after Stage 1 (they don’t depend on each other). Stage 5 should follow Stage 2 (llm/router uses resilience and credentials). Stage 6 should be last among code moves, then Stage 7.

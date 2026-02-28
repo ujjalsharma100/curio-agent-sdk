@@ -87,7 +87,7 @@ class ToolCallingLoop(AgentLoop):
         # Build request; only add response_format when no tools (providers often disallow both)
         response_format_dict = None
         if self.response_format and not state.tool_schemas:
-            from curio_agent_sdk.core.structured_output import response_format_to_schema
+            from curio_agent_sdk.core.workflow import response_format_to_schema
             response_format_dict = response_format_to_schema(self.response_format)
         request = LLMRequest(
             messages=fitted_messages,
@@ -160,7 +160,7 @@ class ToolCallingLoop(AgentLoop):
 
         response_format_dict = None
         if self.response_format and not state.tool_schemas:
-            from curio_agent_sdk.core.structured_output import response_format_to_schema
+            from curio_agent_sdk.core.workflow import response_format_to_schema
             response_format_dict = response_format_to_schema(self.response_format)
         request = LLMRequest(
             messages=fitted_messages,

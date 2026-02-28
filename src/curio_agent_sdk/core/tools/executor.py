@@ -20,9 +20,9 @@ from curio_agent_sdk.models.llm import Message, ToolCall
 from curio_agent_sdk.models.exceptions import ToolError, ToolNotFoundError
 
 if TYPE_CHECKING:
-    from curio_agent_sdk.core.human_input import HumanInputHandler
-    from curio_agent_sdk.core.hooks import HookRegistry
-    from curio_agent_sdk.core.permissions import PermissionPolicy
+    from curio_agent_sdk.core.security import HumanInputHandler
+    from curio_agent_sdk.core.events import HookRegistry
+    from curio_agent_sdk.core.security import PermissionPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,7 @@ class ToolExecutor:
         args = dict(tool_call.arguments)
 
         if self.hook_registry:
-            from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_BEFORE, TOOL_CALL_AFTER, TOOL_CALL_ERROR
+            from curio_agent_sdk.core.events import HookContext, TOOL_CALL_BEFORE, TOOL_CALL_AFTER, TOOL_CALL_ERROR
             ctx = HookContext(
                 event=TOOL_CALL_BEFORE,
                 data={"tool": tool_name, "tool_name": tool_name, "args": args, "tool_call_id": tool_call.id},
@@ -209,7 +209,7 @@ class ToolExecutor:
                         result=cached,
                     )
                     if self.hook_registry:
-                        from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_AFTER
+                        from curio_agent_sdk.core.events import HookContext, TOOL_CALL_AFTER
                         ctx = HookContext(
                             event=TOOL_CALL_AFTER,
                             data={"tool_name": tool_name, "args": args, "result": cached},
@@ -257,7 +257,7 @@ class ToolExecutor:
                 result=result,
             )
             if self.hook_registry:
-                from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_AFTER
+                from curio_agent_sdk.core.events import HookContext, TOOL_CALL_AFTER
                 ctx = HookContext(
                     event=TOOL_CALL_AFTER,
                     data={"tool_name": tool_name, "args": args, "result": result},
@@ -281,7 +281,7 @@ class ToolExecutor:
                 error=str(e),
             )
             if self.hook_registry:
-                from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_ERROR
+                from curio_agent_sdk.core.events import HookContext, TOOL_CALL_ERROR
                 ctx = HookContext(
                     event=TOOL_CALL_ERROR,
                     data={"tool_name": tool_name, "args": args, "error": str(e)},
@@ -299,7 +299,7 @@ class ToolExecutor:
                 error=str(e),
             )
             if self.hook_registry:
-                from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_ERROR
+                from curio_agent_sdk.core.events import HookContext, TOOL_CALL_ERROR
                 ctx = HookContext(
                     event=TOOL_CALL_ERROR,
                     data={"tool_name": tool_name, "args": args, "error": str(e)},
@@ -317,7 +317,7 @@ class ToolExecutor:
                 error=f"Unexpected error: {e}",
             )
             if self.hook_registry:
-                from curio_agent_sdk.core.hooks import HookContext, TOOL_CALL_ERROR
+                from curio_agent_sdk.core.events import HookContext, TOOL_CALL_ERROR
                 ctx = HookContext(
                     event=TOOL_CALL_ERROR,
                     data={"tool_name": tool_name, "args": args, "error": err_result.error},

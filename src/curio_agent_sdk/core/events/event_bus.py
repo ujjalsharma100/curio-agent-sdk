@@ -34,7 +34,7 @@ from curio_agent_sdk.base import Component
 from curio_agent_sdk.models.events import AgentEvent, EventType
 
 if TYPE_CHECKING:
-    from curio_agent_sdk.core.hooks import HookRegistry, HookContext
+    from curio_agent_sdk.core.events import HookRegistry, HookContext
 
 logger = logging.getLogger(__name__)
 
@@ -288,7 +288,7 @@ class EventBusBridge(Component):
             await self.bus.startup()
 
         # Register a single hook handler that forwards all events to the bus
-        from curio_agent_sdk.core.hooks import HOOK_EVENTS
+        from curio_agent_sdk.core.events import HOOK_EVENTS
 
         async def _forward_to_bus(ctx: HookContext) -> None:
             event_type = _hook_name_to_event_type(ctx.event)
@@ -312,7 +312,7 @@ class EventBusBridge(Component):
     async def shutdown(self) -> None:
         """Remove the forwarding hook and shut down the bus."""
         if self._handler is not None:
-            from curio_agent_sdk.core.hooks import HOOK_EVENTS
+            from curio_agent_sdk.core.events import HOOK_EVENTS
             for ev in HOOK_EVENTS:
                 self.hook_registry.off(ev, self._handler)
             self._handler = None
@@ -338,7 +338,7 @@ def _build_hook_to_event_map() -> None:
     """Build the mapping lazily on first use."""
     if _HOOK_TO_EVENT_TYPE:
         return
-    from curio_agent_sdk.core.hooks import (
+    from curio_agent_sdk.core.events import (
         AGENT_RUN_BEFORE, AGENT_RUN_AFTER, AGENT_RUN_ERROR,
         AGENT_ITERATION_BEFORE, AGENT_ITERATION_AFTER,
         LLM_CALL_BEFORE, LLM_CALL_AFTER, LLM_CALL_ERROR,
@@ -369,7 +369,7 @@ def _build_hook_to_event_map() -> None:
 def _hook_name_to_event_type(hook_name: str, data: dict | None = None) -> EventType | None:
     """Convert a dotted hook event name to an EventType."""
     _build_hook_to_event_map()
-    from curio_agent_sdk.core.hooks import AGENT_RUN_ERROR, STATE_CHECKPOINT_AFTER
+    from curio_agent_sdk.core.events import AGENT_RUN_ERROR, STATE_CHECKPOINT_AFTER
 
     if hook_name == AGENT_RUN_ERROR:
         kind = (data or {}).get("error_kind", "error")

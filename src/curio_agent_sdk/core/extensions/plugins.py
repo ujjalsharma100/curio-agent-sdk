@@ -37,7 +37,7 @@ from typing import Any, Dict, Iterable, List, Tuple, TYPE_CHECKING
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from curio_agent_sdk.core.builder import AgentBuilder
+    from curio_agent_sdk.core.agent import AgentBuilder
 
 
 @dataclass

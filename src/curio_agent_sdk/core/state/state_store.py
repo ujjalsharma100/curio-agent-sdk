@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Any
 
 from curio_agent_sdk.base import Component
-from curio_agent_sdk.core.state import AgentState
-from curio_agent_sdk.core.checkpoint import Checkpoint, _serialize_message, _deserialize_message
+from curio_agent_sdk.core.state.state import AgentState
+from curio_agent_sdk.core.state.checkpoint import Checkpoint, _serialize_message, _deserialize_message
 
 logger = logging.getLogger(__name__)
 

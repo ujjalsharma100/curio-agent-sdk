@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from curio_agent_sdk.core.hooks import (
+from curio_agent_sdk.core.events import (
     HookContext,
     HookRegistry,
     LLM_CALL_BEFORE,

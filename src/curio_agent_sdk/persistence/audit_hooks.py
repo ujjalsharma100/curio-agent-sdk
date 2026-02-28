@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from curio_agent_sdk.core.hooks import (
+from curio_agent_sdk.core.events import (
     HookRegistry,
     HookContext,
     AGENT_RUN_BEFORE,

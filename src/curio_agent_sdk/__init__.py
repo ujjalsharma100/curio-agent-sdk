@@ -23,12 +23,10 @@ Quick start:
 """
 
 # Core
-from curio_agent_sdk.core.agent import Agent
+from curio_agent_sdk.core.agent import Agent, AgentBuilder, Runtime
 from curio_agent_sdk.base import Component
-from curio_agent_sdk.core.runtime import Runtime
-from curio_agent_sdk.core.builder import AgentBuilder
 from curio_agent_sdk.core.state import AgentState, StateExtension
-from curio_agent_sdk.core.hooks import (
+from curio_agent_sdk.core.events import (
     HookRegistry,
     HookContext,
     HOOK_EVENTS,
@@ -79,13 +77,13 @@ from curio_agent_sdk.middleware.consumers import (
 from curio_agent_sdk.middleware.prometheus import PrometheusExporter
 
 # Human-in-the-loop
-from curio_agent_sdk.core.human_input import HumanInputHandler, CLIHumanInput
+from curio_agent_sdk.core.security import HumanInputHandler, CLIHumanInput
 
 # CLI harness
 from curio_agent_sdk.cli import AgentCLI
 
 # Permissions / sandbox
-from curio_agent_sdk.core.permissions import (
+from curio_agent_sdk.core.security import (
     PermissionResult,
     PermissionPolicy,
     AllowAll,
@@ -131,14 +129,14 @@ from curio_agent_sdk.memory.policies import (
 )
 
 # Structured output
-from curio_agent_sdk.core.structured_output import (
+from curio_agent_sdk.core.workflow import (
     response_format_to_schema,
     parse_structured_output,
 )
 
 # State persistence
-from curio_agent_sdk.core.checkpoint import Checkpoint
-from curio_agent_sdk.core.state_store import (
+from curio_agent_sdk.core.state import (
+    Checkpoint,
     StateStore,
     InMemoryStateStore,
     FileStateStore,
@@ -160,14 +158,22 @@ from curio_agent_sdk.models.exceptions import (
 )
 
 # Context
-from curio_agent_sdk.core.context import ContextManager
-from curio_agent_sdk.core.instructions import (
+from curio_agent_sdk.core.context import (
+    ContextManager,
     InstructionLoader,
     load_instructions_from_file,
 )
-from curio_agent_sdk.core.skills import Skill, SkillRegistry, get_active_skill_prompts
-from curio_agent_sdk.core.subagent import SubagentConfig, AgentOrchestrator
-from curio_agent_sdk.core.plan_mode import (
+from curio_agent_sdk.core.extensions import (
+    Skill,
+    SkillRegistry,
+    get_active_skill_prompts,
+    SubagentConfig,
+    AgentOrchestrator,
+    Plugin,
+    apply_plugins_to_builder,
+    discover_plugins,
+)
+from curio_agent_sdk.core.workflow import (
     Plan,
     PlanStep,
     PlanState,
@@ -176,25 +182,18 @@ from curio_agent_sdk.core.plan_mode import (
     TodoManager,
     PlanMode,
     get_plan_mode_tools,
-)
-from curio_agent_sdk.core.session import (
-    Session,
-    SessionManager,
-    SessionStore,
-    InMemorySessionStore,
-)
-from curio_agent_sdk.core.task_manager import (
     TaskManager,
     TaskStatus,
     TaskInfo,
     RecoveredRun,
 )
-from curio_agent_sdk.resilience import CircuitBreaker, CircuitState
-from curio_agent_sdk.core.plugins import (
-    Plugin,
-    apply_plugins_to_builder,
-    discover_plugins,
+from curio_agent_sdk.core.state import (
+    Session,
+    SessionManager,
+    SessionStore,
+    InMemorySessionStore,
 )
+from curio_agent_sdk.resilience import CircuitBreaker, CircuitState
 from curio_agent_sdk.tools.computer_use import ComputerUseToolkit
 from curio_agent_sdk.tools.browser import BrowserToolkit
 from curio_agent_sdk.mcp import (
@@ -213,7 +212,7 @@ from curio_agent_sdk.connectors import (
 )
 
 # Event bus (distributed event streaming)
-from curio_agent_sdk.core.event_bus import (
+from curio_agent_sdk.core.events import (
     EventBus,
     InMemoryEventBus,
     EventBusBridge,

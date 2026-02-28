@@ -18,8 +18,7 @@ from __future__ import annotations
 import pytest
 
 from curio_agent_sdk.core.agent import Agent
-from curio_agent_sdk.core.state_store import InMemoryStateStore
-from curio_agent_sdk.core.session import InMemorySessionStore
+from curio_agent_sdk.core.state import InMemoryStateStore, InMemorySessionStore
 from curio_agent_sdk.persistence.memory import InMemoryPersistence
 from curio_agent_sdk.testing.mock_llm import MockLLM
 from curio_agent_sdk.testing.harness import AgentTestHarness

@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Dict, Optional
 
 from curio_agent_sdk.core.agent import Agent
-from curio_agent_sdk.core.session import (
+from curio_agent_sdk.core.state import (
     SessionManager,
     InMemorySessionStore,
 )
@@ -413,7 +413,7 @@ async def main_async() -> None:
     an interactive CLI using the default model.
     """
     import argparse
-    from curio_agent_sdk.core.human_input import CLIHumanInput
+    from curio_agent_sdk.core.security import CLIHumanInput
 
     parser = argparse.ArgumentParser(description="Curio Agent CLI")
     parser.add_argument(

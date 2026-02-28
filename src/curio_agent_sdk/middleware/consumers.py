@@ -20,7 +20,7 @@ import time
 from datetime import datetime
 from typing import Any, TYPE_CHECKING
 
-from curio_agent_sdk.core.hooks import (
+from curio_agent_sdk.core.events import (
     HookContext,
     HookRegistry,
     LLM_CALL_BEFORE,

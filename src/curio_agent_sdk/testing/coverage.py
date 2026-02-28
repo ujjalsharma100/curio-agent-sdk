@@ -8,7 +8,7 @@ before running tests, then call get_report() to inspect or assert on coverage.
 
 Example:
     from curio_agent_sdk.testing.coverage import AgentCoverageTracker
-    from curio_agent_sdk.core.hooks import HookRegistry
+    from curio_agent_sdk.core.events import HookRegistry
 
     registry = HookRegistry()
     coverage = AgentCoverageTracker()
@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from curio_agent_sdk.core.hooks import (
+from curio_agent_sdk.core.events import (
     AGENT_RUN_ERROR,
     HOOK_EVENTS,
     LLM_CALL_ERROR,

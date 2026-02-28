@@ -18,7 +18,7 @@ from typing import Any, AsyncIterator, Callable, TYPE_CHECKING
 
 from curio_agent_sdk.base import Component
 from curio_agent_sdk.core.context import ContextManager
-from curio_agent_sdk.core.hooks import (
+from curio_agent_sdk.core.events import (
     HookContext,
     HookRegistry,
     AGENT_RUN_BEFORE,
@@ -38,15 +38,15 @@ from curio_agent_sdk.core.tools.executor import ToolExecutor
 from curio_agent_sdk.models.llm import Message
 from curio_agent_sdk.models.agent import AgentRunResult
 from curio_agent_sdk.models.events import AgentEvent, EventType, StreamEvent
-from curio_agent_sdk.core.skills import get_active_skill_prompts
+from curio_agent_sdk.core.extensions import get_active_skill_prompts
 
 if TYPE_CHECKING:
     from curio_agent_sdk.memory.manager import MemoryManager
-    from curio_agent_sdk.core.state_store import StateStore
+    from curio_agent_sdk.core.state import StateStore
     from curio_agent_sdk.core.llm.client import LLMClient
-    from curio_agent_sdk.core.skills import SkillRegistry
+    from curio_agent_sdk.core.extensions import SkillRegistry
 
-from curio_agent_sdk.core.session import SessionManager
+from curio_agent_sdk.core.state import SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -228,7 +228,7 @@ class Runtime:
         self.event_bus = event_bus
         self._event_bus_bridge = None
         if event_bus is not None:
-            from curio_agent_sdk.core.event_bus import EventBusBridge
+            from curio_agent_sdk.core.events import EventBusBridge
             self._event_bus_bridge = EventBusBridge(
                 bus=event_bus,
                 hook_registry=self.hook_registry,
@@ -795,7 +795,7 @@ class Runtime:
         parsed_output = None
         if response_format and output:
             try:
-                from curio_agent_sdk.core.structured_output import parse_structured_output
+                from curio_agent_sdk.core.workflow import parse_structured_output
                 parsed_output = parse_structured_output(output, response_format)
             except Exception as e:
                 logger.debug("Structured output parse failed (output left as raw text): %s", e)

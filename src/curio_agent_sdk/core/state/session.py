@@ -48,13 +48,13 @@ class Session:
 
 def _serialize_message(msg: Message) -> dict[str, Any]:
     """Serialize a Message to a JSON-compatible dict (matches checkpoint format)."""
-    from curio_agent_sdk.core.checkpoint import _serialize_message as _cp_serialize
+    from curio_agent_sdk.core.state.checkpoint import _serialize_message as _cp_serialize
     return _cp_serialize(msg)
 
 
 def _deserialize_message(data: dict[str, Any]) -> Message:
     """Deserialize a Message from a dict (matches checkpoint format)."""
-    from curio_agent_sdk.core.checkpoint import _deserialize_message as _cp_deserialize
+    from curio_agent_sdk.core.state.checkpoint import _deserialize_message as _cp_deserialize
     return _cp_deserialize(data)
 
 
