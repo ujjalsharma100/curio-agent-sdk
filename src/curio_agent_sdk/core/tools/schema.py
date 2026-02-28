@@ -108,7 +108,7 @@ class ToolSchema:
                 errors.append(f"Missing required parameter: {param.name}")
 
         if errors:
-            from curio_agent_sdk.exceptions import ToolValidationError
+            from curio_agent_sdk.models.exceptions import ToolValidationError
             raise ToolValidationError(self.name, errors)
 
         # Apply defaults and pass through
