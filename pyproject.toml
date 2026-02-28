@@ -61,20 +61,8 @@ Documentation = "https://github.com/ujjalsharma100/curio-agent-sdk#readme"
 Repository = "https://github.com/ujjalsharma100/curio-agent-sdk.git"
 Issues = "https://github.com/ujjalsharma100/curio-agent-sdk/issues"
 
-[tool.setuptools]
-package-dir = {"curio_agent_sdk" = "."}
-packages = [
-    "curio_agent_sdk",
-    "curio_agent_sdk.config",
-    "curio_agent_sdk.core",
-    "curio_agent_sdk.core.loops",
-    "curio_agent_sdk.core.tools",
-    "curio_agent_sdk.llm",
-    "curio_agent_sdk.llm.providers",
-    "curio_agent_sdk.mcp",
-    "curio_agent_sdk.models",
-    "curio_agent_sdk.persistence",
-]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.black]
 line-length = 100

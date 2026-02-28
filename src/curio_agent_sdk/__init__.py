@@ -24,6 +24,7 @@ Quick start:
 
 # Core
 from curio_agent_sdk.core.agent import Agent
+from curio_agent_sdk.core.component import Component
 from curio_agent_sdk.core.runtime import Runtime
 from curio_agent_sdk.core.builder import AgentBuilder
 from curio_agent_sdk.core.state import AgentState, StateExtension
@@ -228,6 +229,7 @@ __version__ = "0.6.0"
 __all__ = [
     # Core
     "Agent",
+    "Component",
     "Runtime",
     "AgentBuilder",
     "AgentState",
