@@ -272,7 +272,7 @@ For refactor stages that change module paths, the main import dependencies are:
 
 ---
 
-## Stage 7: Finalize pyproject.toml and docs
+## Stage 7: Finalize pyproject.toml and docs ✅ COMPLETED
 
 **Goal:** Correct package list, optional src layout tweaks, and update README/docs if needed.
 
@@ -294,6 +294,8 @@ For refactor stages that change module paths, the main import dependencies are:
 
 **Deliverable:** pyproject.toml and docs match the new layout; tests and install work; README accurate.
 
+**Stage 7 note:** Updated `pyproject.toml` with `include = ["curio_agent_sdk*"]` under `[tool.setuptools.packages.find]` so package discovery is explicit. Updated README "Architecture" section to the src layout and new structure (base, credentials, resilience, cli, core subpackages, core/llm, persistence/audit_hooks). Updated README "Installation" to recommend `pip install -e .` from repo root. `.gitignore` already has `__pycache__/`; no change. Verify with `pip install -e .` then smoke import.
+
 ---
 
 ## Summary: stage order and dependencies
@@ -307,7 +309,7 @@ For refactor stages that change module paths, the main import dependencies are:
 | 4     | CLI → top-level cli/          | 1          |
 | 5     | llm → core/llm                | 2          | ✅ |
 | 6     | core subpackages              | 2, 3, 4, 5 | ✅ |
-| 7     | pyproject + docs              | 6          |
+| 7     | pyproject + docs              | 6          | ✅ |
 
 Stages 2, 3, and 4 can be done in parallel after Stage 1 (they don’t depend on each other). Stage 5 should follow Stage 2 (llm/router uses resilience and credentials). Stage 6 should be last among code moves, then Stage 7.
 

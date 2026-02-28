@@ -63,6 +63,7 @@ Issues = "https://github.com/ujjalsharma100/curio-agent-sdk/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["curio_agent_sdk*"]
 
 [tool.black]
 line-length = 100
