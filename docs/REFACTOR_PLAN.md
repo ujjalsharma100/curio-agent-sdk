@@ -121,7 +121,7 @@ For refactor stages that change module paths, the main import dependencies are:
 
 ---
 
-## Stage 3: Move audit into persistence
+## Stage 3: Move audit into persistence ✅ COMPLETED
 
 **Goal:** `core/audit.py` → `persistence/audit_hooks.py`; persistence owns “wire hooks to persistence.”
 
@@ -147,6 +147,8 @@ For refactor stages that change module paths, the main import dependencies are:
    - Tests and smoke import.
 
 **Deliverable:** Audit lives under persistence; core no longer has audit; tests pass.
+
+**Stage 3 note:** Moved `core/audit.py` → `persistence/audit_hooks.py` via `mv`. Updated docstring in `audit_hooks.py` to show `from curio_agent_sdk.persistence.audit_hooks import register_audit_hooks`. Added `register_audit_hooks` to `persistence/__init__.py`. No callers in codebase imported `core.audit`; root and core `__init__.py` did not re-export audit. Smoke: run with `pip install -e .` then `from curio_agent_sdk.persistence import register_audit_hooks`.
 
 ---
 

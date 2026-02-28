@@ -6,7 +6,7 @@ hooks (agent runs, LLM calls, tool calls) and emits structured audit events
 to a persistence backend that implements `BasePersistence`.
 
 Usage:
-    from curio_agent_sdk.core.audit import register_audit_hooks
+    from curio_agent_sdk.persistence.audit_hooks import register_audit_hooks
     from curio_agent_sdk.persistence.sqlite import SQLitePersistence
 
     persistence = SQLitePersistence("agent_sdk.db")

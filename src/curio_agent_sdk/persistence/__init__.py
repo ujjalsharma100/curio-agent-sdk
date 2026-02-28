@@ -12,10 +12,12 @@ from curio_agent_sdk.persistence.base import BasePersistence
 from curio_agent_sdk.persistence.postgres import PostgresPersistence
 from curio_agent_sdk.persistence.sqlite import SQLitePersistence
 from curio_agent_sdk.persistence.memory import InMemoryPersistence
+from curio_agent_sdk.persistence.audit_hooks import register_audit_hooks
 
 __all__ = [
     "BasePersistence",
     "PostgresPersistence",
     "SQLitePersistence",
     "InMemoryPersistence",
+    "register_audit_hooks",
 ]
