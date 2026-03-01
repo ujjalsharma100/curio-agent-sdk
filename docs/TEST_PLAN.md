@@ -30,7 +30,7 @@
 19. [Phase 15 — CLI](#19-phase-15--cli) ✅
 20. [Phase 16 — Testing Utilities (Meta-Tests)](#20-phase-16--testing-utilities-meta-tests) ✅
 21. [Phase 17 — Integration Tests](#21-phase-17--integration-tests) ✅
-22. [Phase 18 — End-to-End / Example Tests](#22-phase-18--end-to-end--example-tests)
+22. [Phase 18 — End-to-End / Example Tests](#22-phase-18--end-to-end--example-tests) ✅
 23. [Phase 19 — Performance & Stress Tests](#23-phase-19--performance--stress-tests)
 24. [Phase 20 — CI/CD & Coverage Configuration](#24-phase-20--cicd--coverage-configuration)
 25. [Running Tests](#25-running-tests)
@@ -2086,10 +2086,10 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 
 ---
 
-## 22. Phase 18 — End-to-End / Example Tests
+## 22. Phase 18 — End-to-End / Example Tests ✅
 
 **Priority:** Medium
-**Estimated tests:** ~25
+**Estimated tests:** ~25 → **20 implemented**
 
 These tests validate complete agent scenarios as a user would use them, using MockLLM.
 
@@ -2098,11 +2098,11 @@ These tests validate complete agent scenarios as a user would use them, using Mo
 **File:** `tests/e2e/test_simple_agent.py`
 
 
-| #   | Test Case                         | What It Validates             |
-| --- | --------------------------------- | ----------------------------- |
-| 1   | `test_hello_world_agent`          | Minimal agent that responds   |
-| 2   | `test_agent_with_system_prompt`   | Custom system prompt used     |
-| 3   | `test_agent_run_result_structure` | AgentRunResult has all fields |
+| #   | Test Case                         | What It Validates             | Status |
+| --- | --------------------------------- | ----------------------------- | ------ |
+| 1   | `test_hello_world_agent`          | Minimal agent that responds   | ✅      |
+| 2   | `test_agent_with_system_prompt`   | Custom system prompt used     | ✅      |
+| 3   | `test_agent_run_result_structure` | AgentRunResult has all fields | ✅      |
 
 
 ### 22.2 Tool Agent
@@ -2110,11 +2110,11 @@ These tests validate complete agent scenarios as a user would use them, using Mo
 **File:** `tests/e2e/test_tool_agent.py`
 
 
-| #   | Test Case                  | What It Validates                 |
-| --- | -------------------------- | --------------------------------- |
-| 1   | `test_calculator_agent`    | Agent calls calculator tool       |
-| 2   | `test_multi_tool_agent`    | Agent orchestrates multiple tools |
-| 3   | `test_tool_error_handling` | Agent handles tool failures       |
+| #   | Test Case                  | What It Validates                 | Status |
+| --- | -------------------------- | --------------------------------- | ------ |
+| 1   | `test_calculator_agent`    | Agent calls calculator tool       | ✅      |
+| 2   | `test_multi_tool_agent`    | Agent orchestrates multiple tools | ✅      |
+| 3   | `test_tool_error_handling` | Agent handles tool failures       | ✅      |
 
 
 ### 22.3 Multi-Turn Agent
@@ -2122,10 +2122,10 @@ These tests validate complete agent scenarios as a user would use them, using Mo
 **File:** `tests/e2e/test_multi_turn_agent.py`
 
 
-| #   | Test Case                         | What It Validates               |
-| --- | --------------------------------- | ------------------------------- |
-| 1   | `test_conversation_continuity`    | Context maintained across turns |
-| 2   | `test_session_based_conversation` | Session-based multi-turn        |
+| #   | Test Case                         | What It Validates               | Status |
+| --- | --------------------------------- | ------------------------------- | ------ |
+| 1   | `test_conversation_continuity`    | Context maintained across turns | ✅      |
+| 2   | `test_session_based_conversation` | Session-based multi-turn        | ✅      |
 
 
 ### 22.4 Coding Agent
@@ -2133,10 +2133,10 @@ These tests validate complete agent scenarios as a user would use them, using Mo
 **File:** `tests/e2e/test_coding_agent.py`
 
 
-| #   | Test Case                    | What It Validates            |
-| --- | ---------------------------- | ---------------------------- |
-| 1   | `test_file_read_write_agent` | Agent reads and writes files |
-| 2   | `test_code_execution_agent`  | Agent executes Python code   |
+| #   | Test Case                    | What It Validates            | Status |
+| --- | ---------------------------- | ---------------------------- | ------ |
+| 1   | `test_file_read_write_agent` | Agent reads and writes files | ✅      |
+| 2   | `test_code_execution_agent`  | Agent executes Python code   | ✅      |
 
 
 ### 22.5 Multi-Agent
@@ -2144,11 +2144,11 @@ These tests validate complete agent scenarios as a user would use them, using Mo
 **File:** `tests/e2e/test_multi_agent.py`
 
 
-| #   | Test Case                  | What It Validates                |
-| --- | -------------------------- | -------------------------------- |
-| 1   | `test_parent_child_agents` | Parent spawns child, gets result |
-| 2   | `test_agent_handoff`       | Agent hands off to specialist    |
-| 3   | `test_parallel_subagents`  | Multiple subagents in parallel   |
+| #   | Test Case                  | What It Validates                | Status |
+| --- | -------------------------- | -------------------------------- | ------ |
+| 1   | `test_parent_child_agents` | Parent spawns child, gets result | ✅      |
+| 2   | `test_agent_handoff`       | Agent hands off to specialist    | ✅      |
+| 3   | `test_parallel_subagents`  | Multiple subagents in parallel   | ✅      |
 
 
 ### 22.6 Resilient Agent
@@ -2156,11 +2156,11 @@ These tests validate complete agent scenarios as a user would use them, using Mo
 **File:** `tests/e2e/test_resilient_agent.py`
 
 
-| #   | Test Case                      | What It Validates                |
-| --- | ------------------------------ | -------------------------------- |
-| 1   | `test_agent_timeout_recovery`  | Agent handles timeout gracefully |
-| 2   | `test_agent_max_iterations`    | Stops at max iterations          |
-| 3   | `test_agent_provider_fallback` | Falls back to another provider   |
+| #   | Test Case                      | What It Validates                | Status |
+| --- | ------------------------------ | -------------------------------- | ------ |
+| 1   | `test_agent_timeout_recovery`  | Agent handles timeout gracefully | ✅      |
+| 2   | `test_agent_max_iterations`    | Stops at max iterations          | ✅      |
+| 3   | `test_agent_provider_fallback` | Falls back to another provider   | ✅      |
 
 
 ### 22.7 Memory Agent
@@ -2168,10 +2168,10 @@ These tests validate complete agent scenarios as a user would use them, using Mo
 **File:** `tests/e2e/test_memory_agent.py`
 
 
-| #   | Test Case                          | What It Validates           |
-| --- | ---------------------------------- | --------------------------- |
-| 1   | `test_agent_remembers_context`     | Memory persists across runs |
-| 2   | `test_agent_with_composite_memory` | Multiple memory types       |
+| #   | Test Case                          | What It Validates           | Status |
+| --- | ---------------------------------- | --------------------------- | ------ |
+| 1   | `test_agent_remembers_context`     | Memory persists across runs | ✅      |
+| 2   | `test_agent_with_composite_memory` | Multiple memory types       | ✅      |
 
 
 ### 22.8 Structured Agent
@@ -2179,10 +2179,10 @@ These tests validate complete agent scenarios as a user would use them, using Mo
 **File:** `tests/e2e/test_structured_agent.py`
 
 
-| #   | Test Case                       | What It Validates             |
-| --- | ------------------------------- | ----------------------------- |
-| 1   | `test_agent_structured_output`  | Returns parsed Pydantic model |
-| 2   | `test_agent_json_schema_output` | Returns structured JSON       |
+| #   | Test Case                       | What It Validates             | Status |
+| --- | ------------------------------- | ----------------------------- | ------ |
+| 1   | `test_agent_structured_output`  | Returns parsed Pydantic model | ✅      |
+| 2   | `test_agent_json_schema_output` | Returns structured JSON       | ✅      |
 
 
 ---
@@ -2520,7 +2520,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 15        | CLI                                     | ✅ 9 (43% cov)    | Low       |
 | 16        | Testing Utilities (Meta)                | ✅ 55 (72% cov)   | High      |
 | 17        | Integration Tests                       | ✅ 70 (39% cov)   | High      |
-| 18        | E2E / Example Tests                     | ~25              | Medium    |
+| 18        | E2E / Example Tests                     | ✅ 20 (34% cov)   | Medium    |
 | 19        | Performance Tests                       | ~12              | Low       |
 | 20        | CI/CD & Coverage                        | —                | Medium    |
 | **TOTAL** |                                         | **~822**         |           |
