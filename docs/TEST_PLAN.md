@@ -17,7 +17,7 @@
 6. [Phase 2 — Core Tooling System](#6-phase-2--core-tooling-system) ✅
 7. [Phase 3 — LLM Client & Provider Layer](#7-phase-3--llm-client--provider-layer) ✅
 8. [Phase 4 — Agent Loop & Runtime](#8-phase-4--agent-loop--runtime)
-9. [Phase 5 — State, Checkpoint & Session Management](#9-phase-5--state-checkpoint--session-management)
+9. [Phase 5 — State, Checkpoint & Session Management](#9-phase-5--state-checkpoint--session-management) ✅
 10. [Phase 6 — Memory System](#10-phase-6--memory-system)
 11. [Phase 7 — Events, Hooks & Middleware](#11-phase-7--events-hooks--middleware)
 12. [Phase 8 — Security & Permissions](#12-phase-8--security--permissions)
@@ -740,77 +740,92 @@ For each provider (OpenAI, Anthropic, Groq, Ollama):
 
 ---
 
-## 9. Phase 5 — State, Checkpoint & Session Management
+## 9. Phase 5 — State, Checkpoint & Session Management ✅
 
 **Priority:** High
-**Estimated tests:** ~45
+**Estimated tests:** ~45 → **49 tests written, 49 passed, 86% coverage** (core/state)
+**Status:** ✅ COMPLETED
 
-### 9.1 `core/state/state.py` — AgentState
+**Phase 5 coverage (latest run):** `pytest tests/unit/state/ --cov=src/curio_agent_sdk/core/state --cov-report=term-missing --cov-branch`
 
-**File:** `tests/unit/state/test_agent_state.py`
+| Module | Stmts | Miss | Branch | BrPart | Cover |
+|--------|-------|------|--------|--------|-------|
+| `core/state/__init__.py` | 5 | 0 | 0 | 0 | **100%** |
+| `core/state/state.py` | 107 | 6 | 10 | 2 | **93%** |
+| `core/state/state_store.py` | 104 | 8 | 14 | 0 | **93%** |
+| `core/state/session.py` | 88 | 1 | 6 | 2 | **97%** |
+| `core/state/checkpoint.py` | 78 | 23 | 24 | 5 | 59% |
+| **TOTAL (core/state)** | **382** | **38** | **54** | **9** | **86%** |
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_state_creation_defaults` | Default empty state |
-| 2 | `test_state_add_messages` | Append messages to state |
-| 3 | `test_state_iteration_tracking` | Iteration counter |
-| 4 | `test_state_metrics_tracking` | LLM calls, tool calls, tokens |
-| 5 | `test_state_cancel_event` | Cancel event set/checked |
-| 6 | `test_state_done_flag` | `_done` flag management |
-| 7 | `test_state_extensions_set_get` | `set_ext()` and `get_ext()` |
-| 8 | `test_state_extensions_not_found` | `get_ext()` returns None |
-| 9 | `test_state_transition_history` | Phase transitions recorded |
-| 10 | `test_state_metadata` | Arbitrary metadata storage |
+### 9.1 `core/state/state.py` — AgentState ✅
 
-### 9.2 `core/state/state_store.py` — StateStore Implementations
+**File:** `tests/unit/state/test_agent_state.py` — **14 tests, all passing**
 
-**File:** `tests/unit/state/test_state_store.py`
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_state_creation_defaults` | Default empty state | ✅ |
+| 2 | `test_state_add_messages` | Append messages to state | ✅ |
+| 3 | `test_state_iteration_tracking` | Iteration counter | ✅ |
+| 4 | `test_state_metrics_tracking` | LLM calls, tool calls, tokens | ✅ |
+| 5 | `test_state_cancel_event` | Cancel event set/checked | ✅ |
+| 6 | `test_state_done_flag` | `_done` flag management | ✅ |
+| 7 | `test_state_extensions_set_get` | `set_ext()` and `get_ext()` | ✅ |
+| 8 | `test_state_extensions_not_found` | `get_ext()` returns None | ✅ |
+| 9 | `test_state_transition_history` | Phase transitions recorded | ✅ |
+| 10 | `test_state_metadata` | Arbitrary metadata storage | ✅ |
+| + | `test_state_add_messages_bulk`, `test_state_set_transition_history`, `test_state_elapsed_time`, `test_state_assistant_messages` | Bulk messages, history restore, elapsed time, assistant filter | ✅ |
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_inmemory_store_save` | Save state |
-| 2 | `test_inmemory_store_load` | Load saved state |
-| 3 | `test_inmemory_store_load_nonexistent` | Returns None |
-| 4 | `test_inmemory_store_list_runs` | List runs for agent |
-| 5 | `test_inmemory_store_delete` | Delete a run |
-| 6 | `test_file_store_save_load` | File-based save/load (uses tmp_path) |
-| 7 | `test_file_store_list_runs` | List runs from files |
-| 8 | `test_file_store_delete` | Delete file-based run |
-| 9 | `test_file_store_corrupted_file` | Handle corrupted state file |
+### 9.2 `core/state/state_store.py` — StateStore Implementations ✅
 
-### 9.3 `core/state/checkpoint.py` — Checkpoint
+**File:** `tests/unit/state/test_state_store.py` — **10 tests, all passing**
 
-**File:** `tests/unit/state/test_checkpoint.py`
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_inmemory_store_save` | Save state | ✅ |
+| 2 | `test_inmemory_store_load` | Load saved state | ✅ |
+| 3 | `test_inmemory_store_load_nonexistent` | Returns None | ✅ |
+| 4 | `test_inmemory_store_list_runs` | List runs for agent | ✅ |
+| 5 | `test_inmemory_store_delete` | Delete a run | ✅ |
+| 6 | `test_file_store_save_load` | File-based save/load (uses tmp_path) | ✅ |
+| 7 | `test_file_store_list_runs` | List runs from files | ✅ |
+| 8 | `test_file_store_delete` | Delete file-based run | ✅ |
+| 9 | `test_file_store_corrupted_file` | Handle corrupted state file | ✅ |
+| 10 | `test_file_store_load_nonexistent` | Load returns None when file missing | ✅ |
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_checkpoint_creation` | Create checkpoint dataclass |
-| 2 | `test_checkpoint_serialize` | Serialize to bytes |
-| 3 | `test_checkpoint_deserialize` | Deserialize from bytes |
-| 4 | `test_checkpoint_roundtrip` | Serialize → deserialize = same |
-| 5 | `test_checkpoint_from_state` | Create from AgentState |
-| 6 | `test_checkpoint_restore_messages` | Restore Message objects |
-| 7 | `test_checkpoint_with_extensions` | Extensions serialized |
-| 8 | `test_checkpoint_with_transition_history` | History preserved |
-| 9 | `test_checkpoint_large_state` | Large message list handling |
-| 10 | `test_checkpoint_corrupted_data` | Graceful error on bad data |
+### 9.3 `core/state/checkpoint.py` — Checkpoint ✅
 
-### 9.4 `core/state/session.py` — Session & SessionManager
+**File:** `tests/unit/state/test_checkpoint.py` — **10 tests, all passing**
 
-**File:** `tests/unit/state/test_session.py`
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_checkpoint_creation` | Create checkpoint dataclass | ✅ |
+| 2 | `test_checkpoint_serialize` | Serialize to bytes | ✅ |
+| 3 | `test_checkpoint_deserialize` | Deserialize from bytes | ✅ |
+| 4 | `test_checkpoint_roundtrip` | Serialize → deserialize = same | ✅ |
+| 5 | `test_checkpoint_from_state` | Create from AgentState | ✅ |
+| 6 | `test_checkpoint_restore_messages` | Restore Message objects | ✅ |
+| 7 | `test_checkpoint_with_extensions` | Extensions serialized | ✅ |
+| 8 | `test_checkpoint_with_transition_history` | History preserved | ✅ |
+| 9 | `test_checkpoint_large_state` | Large message list handling | ✅ |
+| 10 | `test_checkpoint_corrupted_data` | Graceful error on bad data | ✅ |
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_session_creation` | Session dataclass |
-| 2 | `test_session_touch` | `touch()` updates `updated_at` |
-| 3 | `test_session_store_create` | Create new session |
-| 4 | `test_session_store_get` | Retrieve session |
-| 5 | `test_session_store_list` | List sessions for agent |
-| 6 | `test_session_store_add_message` | Add message to session |
-| 7 | `test_session_store_get_messages` | Retrieve session messages |
-| 8 | `test_session_store_delete` | Delete session |
-| 9 | `test_session_manager_create` | Manager delegates to store |
-| 10 | `test_session_manager_get` | Manager delegates get |
+### 9.4 `core/state/session.py` — Session & SessionManager ✅
+
+**File:** `tests/unit/state/test_session.py` — **15 tests, all passing**
+
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_session_creation` | Session dataclass | ✅ |
+| 2 | `test_session_touch` | `touch()` updates `updated_at` | ✅ |
+| 3 | `test_session_store_create` | Create new session | ✅ |
+| 4 | `test_session_store_get` | Retrieve session | ✅ |
+| 5 | `test_session_store_list` | List sessions for agent | ✅ |
+| 6 | `test_session_store_add_message` | Add message to session | ✅ |
+| 7 | `test_session_store_get_messages` | Retrieve session messages | ✅ |
+| 8 | `test_session_store_delete` | Delete session | ✅ |
+| 9 | `test_session_manager_create` | Manager delegates to store | ✅ |
+| 10 | `test_session_manager_get` | Manager delegates get | ✅ |
+| + | `test_session_manager_list`, `test_session_manager_delete`, `test_session_manager_add_message`, `test_session_manager_get_messages`, `test_session_manager_store_property` | Manager list/delete/add_message/get_messages/store | ✅ |
 
 ---
 
@@ -2028,7 +2043,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 2 | Tooling System | ✅ 129 (87% cov) | Very High |
 | 3 | LLM Client & Providers | ✅ 92 (66% cov) | Very High |
 | 4 | Agent Loop & Runtime | ✅ 78 (64% cov) | Very High |
-| 5 | State, Checkpoint, Session | ~45 | High |
+| 5 | State, Checkpoint, Session | ✅ 49 (86% cov) | High |
 | 6 | Memory System | ~80 | High |
 | 7 | Events, Hooks, Middleware | ~65 | High |
 | 8 | Security & Permissions | ~30 | High |
