@@ -15,7 +15,7 @@
 4. [Test Categories](#4-test-categories)
 5. [Phase 1 — Foundation: Models, Exceptions & Base Classes](#5-phase-1--foundation-models-exceptions--base-classes) ✅
 6. [Phase 2 — Core Tooling System](#6-phase-2--core-tooling-system) ✅
-7. [Phase 3 — LLM Client & Provider Layer](#7-phase-3--llm-client--provider-layer)
+7. [Phase 3 — LLM Client & Provider Layer](#7-phase-3--llm-client--provider-layer) ✅
 8. [Phase 4 — Agent Loop & Runtime](#8-phase-4--agent-loop--runtime)
 9. [Phase 5 — State, Checkpoint & Session Management](#9-phase-5--state-checkpoint--session-management)
 10. [Phase 6 — Memory System](#10-phase-6--memory-system)
@@ -540,62 +540,63 @@ tests/
 
 ---
 
-## 7. Phase 3 — LLM Client & Provider Layer
+## 7. Phase 3 — LLM Client & Provider Layer ✅
 
 **Priority:** Very High
 **Estimated tests:** ~60
+**Status:** ✅ Complete (92 tests passing)
 
 ### 7.1 `core/llm/client.py` — LLMClient
 
 **File:** `tests/unit/llm/test_llm_client.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_client_call_basic` | Basic call with mocked provider |
-| 2 | `test_client_call_with_tools` | Call with tool schemas |
-| 3 | `test_client_call_routing` | Request routed to correct provider |
-| 4 | `test_client_call_with_middleware` | Middleware pipeline executed |
-| 5 | `test_client_call_error_handling` | Provider error bubbles up |
-| 6 | `test_client_stream_basic` | Stream response with mocked provider |
-| 7 | `test_client_batch_basic` | Batch multiple requests |
-| 8 | `test_client_dedup_enabled` | Deduplication prevents duplicate calls |
-| 9 | `test_client_dedup_disabled` | No dedup when disabled |
-| 10 | `test_client_startup_shutdown` | Component lifecycle |
-| 11 | `test_client_custom_providers` | Register custom provider |
-| 12 | `test_client_fallback_on_error` | Falls back to alternative provider |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_client_call_basic` | Basic call with mocked provider | ✅ |
+| 2 | `test_client_call_with_tools` | Call with tool schemas | ✅ |
+| 3 | `test_client_call_routing` | Request routed to correct provider | ✅ |
+| 4 | `test_client_call_with_middleware` | Middleware pipeline executed | ✅ |
+| 5 | `test_client_call_error_handling` | Provider error bubbles up | ✅ |
+| 6 | `test_client_stream_basic` | Stream response with mocked provider | ✅ |
+| 7 | `test_client_batch_basic` | Batch multiple requests | ✅ |
+| 8 | `test_client_dedup_enabled` | Deduplication prevents duplicate calls | ✅ |
+| 9 | `test_client_dedup_disabled` | No dedup when disabled | ✅ |
+| 10 | `test_client_startup_shutdown` | Component lifecycle | ✅ |
+| 11 | `test_client_custom_providers` | Register custom provider | ✅ |
+| 12 | `test_client_fallback_on_error` | Falls back to alternative provider | ✅ |
 
 ### 7.2 `core/llm/router.py` — TieredRouter
 
 **File:** `tests/unit/llm/test_tiered_router.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_router_route_tier1` | Routes to tier1 provider |
-| 2 | `test_router_route_tier2` | Routes to tier2 provider |
-| 3 | `test_router_route_tier3` | Routes to tier3 provider |
-| 4 | `test_router_round_robin` | Rotates among providers in same tier |
-| 5 | `test_router_unhealthy_provider_skip` | Skips unhealthy providers |
-| 6 | `test_router_all_unhealthy` | All providers down → degradation strategy |
-| 7 | `test_router_reset_and_retry_strategy` | ResetAndRetry behavior |
-| 8 | `test_router_fallback_to_lower_tier` | FallbackToLowerTier behavior |
-| 9 | `test_router_raise_error_strategy` | RaiseError behavior |
-| 10 | `test_router_empty_tier` | No providers in tier |
-| 11 | `test_router_provider_health_tracking` | Mark provider healthy/unhealthy |
-| 12 | `test_router_auto_detection` | Auto-detect from environment variables |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_router_route_tier1` | Routes to tier1 provider | ✅ |
+| 2 | `test_router_route_tier2` | Routes to tier2 provider | ✅ |
+| 3 | `test_router_route_tier3` | Routes to tier3 provider | ✅ |
+| 4 | `test_router_round_robin` | Rotates among providers in same tier | ✅ |
+| 5 | `test_router_unhealthy_provider_skip` | Skips unhealthy providers | ✅ |
+| 6 | `test_router_all_unhealthy` | All providers down → degradation strategy | ✅ |
+| 7 | `test_router_reset_and_retry_strategy` | ResetAndRetry behavior | ✅ |
+| 8 | `test_router_fallback_to_lower_tier` | FallbackToLowerTier behavior | ✅ |
+| 9 | `test_router_raise_error_strategy` | RaiseError behavior | ✅ |
+| 10 | `test_router_empty_tier` | No providers in tier | ✅ |
+| 11 | `test_router_provider_health_tracking` | Mark provider healthy/unhealthy | ✅ |
+| 12 | `test_router_auto_detection` | Auto-detect from environment variables | ✅ |
 
 ### 7.3 `core/llm/token_counter.py` — Token Counting
 
 **File:** `tests/unit/llm/test_token_counter.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_count_tokens_simple` | Count tokens in a string |
-| 2 | `test_count_tokens_messages` | Count tokens across messages |
-| 3 | `test_count_tokens_with_tools` | Count includes tool schemas |
-| 4 | `test_count_tokens_caching` | Cached results returned |
-| 5 | `test_count_tokens_different_models` | Different models = different counts |
-| 6 | `test_count_tokens_empty` | Empty message list |
-| 7 | `test_fallback_estimation` | When tiktoken not installed |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_count_tokens_simple` | Count tokens in a string | ✅ |
+| 2 | `test_count_tokens_messages` | Count tokens across messages | ✅ |
+| 3 | `test_count_tokens_with_tools` | Count includes tool schemas | ✅ |
+| 4 | `test_count_tokens_caching` | Cached results returned | ✅ |
+| 5 | `test_count_tokens_different_models` | Different models = different counts | ✅ |
+| 6 | `test_count_tokens_empty` | Empty message list | ✅ |
+| 7 | `test_fallback_estimation` | When tiktoken not installed | ✅ |
 
 ### 7.4 LLM Providers (unit tests with mocked HTTP)
 
@@ -603,18 +604,18 @@ tests/
 
 For each provider (OpenAI, Anthropic, Groq, Ollama):
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_provider_name` | `provider_name` attribute |
-| 2 | `test_provider_call_success` | Successful API call (mocked) |
-| 3 | `test_provider_call_with_tools` | Tool-use request formatting |
-| 4 | `test_provider_call_rate_limit` | 429 → `LLMRateLimitError` |
-| 5 | `test_provider_call_auth_error` | 401 → `LLMAuthenticationError` |
-| 6 | `test_provider_call_server_error` | 500 → `LLMProviderError` |
-| 7 | `test_provider_call_timeout` | Timeout → `LLMTimeoutError` |
-| 8 | `test_provider_stream` | Streaming response (mocked) |
-| 9 | `test_provider_request_formatting` | Request format matches API spec |
-| 10 | `test_provider_response_parsing` | Response parsed into LLMResponse |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_provider_name` | `provider_name` attribute | ✅ |
+| 2 | `test_provider_call_success` | Successful API call (mocked) | ✅ |
+| 3 | `test_provider_call_with_tools` | Tool-use request formatting | ✅ |
+| 4 | `test_provider_call_rate_limit` | 429 → `LLMRateLimitError` | ✅ |
+| 5 | `test_provider_call_auth_error` | 401 → `LLMAuthenticationError` | ✅ |
+| 6 | `test_provider_call_server_error` | 500 → `LLMProviderError` | ✅ |
+| 7 | `test_provider_call_timeout` | Timeout → `LLMTimeoutError` | ✅ |
+| 8 | `test_provider_stream` | Streaming response (mocked) | ✅ |
+| 9 | `test_provider_request_formatting` | Request format matches API spec | ✅ |
+| 10 | `test_provider_response_parsing` | Response parsed into LLMResponse | ✅ |
 
 ---
 
