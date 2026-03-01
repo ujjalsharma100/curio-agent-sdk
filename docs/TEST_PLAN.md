@@ -623,111 +623,120 @@ For each provider (OpenAI, Anthropic, Groq, Ollama):
 
 **Priority:** Very High
 **Estimated tests:** ~50
+**Status:** ✅ Complete (78 tests passing)
 
 ### 8.1 `core/loops/base.py` — AgentLoop ABC
 
 **File:** `tests/unit/loops/test_agent_loop.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_agent_loop_is_abstract` | Cannot instantiate directly |
-| 2 | `test_agent_loop_step_abstract` | `step()` must be implemented |
-| 3 | `test_agent_loop_should_continue_abstract` | `should_continue()` must be implemented |
-| 4 | `test_agent_loop_get_output_default` | Default `get_output()` extracts last assistant message |
-| 5 | `test_agent_loop_stream_step_default` | Default stream_step raises NotImplementedError or works |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_agent_loop_is_abstract` | Cannot instantiate directly | ✅ |
+| 2 | `test_agent_loop_step_abstract` | `step()` must be implemented | ✅ |
+| 3 | `test_agent_loop_should_continue_abstract` | `should_continue()` must be implemented | ✅ |
+| 4 | `test_agent_loop_get_output_default` | Default `get_output()` extracts last assistant message | ✅ |
+| 5 | `test_agent_loop_stream_step_default` | Default stream_step raises NotImplementedError or works | ✅ |
+| 6 | `test_agent_loop_get_output_empty` | Empty messages returns empty string | ✅ |
 
 ### 8.2 `core/loops/tool_calling.py` — ToolCallingLoop
 
 **File:** `tests/unit/loops/test_tool_calling_loop.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_loop_step_text_response` | LLM returns text → state updated, done |
-| 2 | `test_loop_step_tool_call` | LLM returns tool call → tool executed, result added |
-| 3 | `test_loop_step_multiple_tool_calls` | Multiple tool calls in one step |
-| 4 | `test_loop_step_parallel_tool_calls` | `parallel_tool_calls=True` |
-| 5 | `test_loop_step_sequential_tool_calls` | `parallel_tool_calls=False` |
-| 6 | `test_loop_should_continue_stop` | `finish_reason="stop"` → False |
-| 7 | `test_loop_should_continue_tool_use` | `finish_reason="tool_use"` → True |
-| 8 | `test_loop_should_continue_max_iterations` | At max → False |
-| 9 | `test_loop_should_continue_cancelled` | Cancel event set → False |
-| 10 | `test_loop_context_manager_integration` | Context window management |
-| 11 | `test_loop_with_response_format` | Structured output mode |
-| 12 | `test_loop_error_in_llm_call` | LLM error propagation |
-| 13 | `test_loop_error_in_tool_execution` | Tool error → error result message |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_loop_step_text_response` | LLM returns text → state updated, done | ✅ |
+| 2 | `test_loop_step_tool_call` | LLM returns tool call → tool executed, result added | ✅ |
+| 3 | `test_loop_step_multiple_tool_calls` | Multiple tool calls in one step | ✅ |
+| 4 | `test_loop_step_parallel_tool_calls` | `parallel_tool_calls=True` | ✅ |
+| 5 | `test_loop_step_sequential_tool_calls` | `parallel_tool_calls=False` | ✅ |
+| 6 | `test_loop_should_continue_stop` | `finish_reason="stop"` → False | ✅ |
+| 7 | `test_loop_should_continue_tool_use` | `finish_reason="tool_use"` → True | ✅ |
+| 8 | `test_loop_should_continue_max_iterations` | At max → False | ✅ |
+| 9 | `test_loop_should_continue_cancelled` | Cancel event set → False | ✅ |
+| 10 | `test_loop_context_manager_integration` | Context window management | ✅ |
+| 11 | `test_loop_with_response_format` | Structured output mode | ✅ |
+| 12 | `test_loop_error_in_llm_call` | LLM error propagation | ✅ |
+| 13 | `test_loop_error_in_tool_execution` | Tool error → error result message | ✅ |
+| 14 | `test_loop_no_llm_raises` | Step without LLM raises RuntimeError | ✅ |
 
 ### 8.3 `core/agent/runtime.py` — Runtime
 
 **File:** `tests/unit/agent/test_runtime.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_runtime_run_simple` | Single iteration, text response |
-| 2 | `test_runtime_run_with_tool_call` | Tool call → tool result → final text |
-| 3 | `test_runtime_run_multi_iteration` | Multiple loop iterations |
-| 4 | `test_runtime_run_max_iterations` | Hits max iterations limit |
-| 5 | `test_runtime_run_timeout` | Hits timeout |
-| 6 | `test_runtime_run_cancellation` | Cancel during execution |
-| 7 | `test_runtime_run_error` | LLM error during run |
-| 8 | `test_runtime_memory_injection` | Memory injected at start |
-| 9 | `test_runtime_memory_save` | Memory saved after run |
-| 10 | `test_runtime_hook_lifecycle` | All hooks emitted in order |
-| 11 | `test_runtime_checkpoint_save` | State checkpointed after iterations |
-| 12 | `test_runtime_create_state` | `create_state()` helper |
-| 13 | `test_runtime_run_with_state` | `run_with_state()` with pre-built state |
-| 14 | `test_runtime_startup_shutdown` | Component lifecycle |
-| 15 | `test_runtime_streaming` | `astream()` yields events |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_runtime_run_simple` | Single iteration, text response | ✅ |
+| 2 | `test_runtime_run_with_tool_call` | Tool call → tool result → final text | ✅ |
+| 3 | `test_runtime_run_multi_iteration` | Multiple loop iterations | ✅ |
+| 4 | `test_runtime_run_max_iterations` | Hits max iterations limit | ✅ |
+| 5 | `test_runtime_run_timeout` | Hits timeout | ✅ |
+| 6 | `test_runtime_run_cancellation` | Cancel during execution | ✅ |
+| 7 | `test_runtime_run_error` | LLM error during run | ✅ |
+| 8 | `test_runtime_memory_injection` | Memory injected at start | ✅ |
+| 9 | `test_runtime_memory_save` | Memory saved after run | ✅ |
+| 10 | `test_runtime_hook_lifecycle` | All hooks emitted in order | ✅ |
+| 11 | `test_runtime_checkpoint_save` | State checkpointed after iterations | ✅ |
+| 12 | `test_runtime_create_state` | `create_state()` helper | ✅ |
+| 13 | `test_runtime_create_state_with_context` | `create_state()` with context dict | ✅ |
+| 14 | `test_runtime_run_with_state` | `run_with_state()` with pre-built state | ✅ |
+| 15 | `test_runtime_startup_shutdown` | Component lifecycle | ✅ |
+| 16 | `test_runtime_streaming` | `astream()` yields events | ✅ |
 
 ### 8.4 `core/agent/agent.py` — Agent
 
 **File:** `tests/unit/agent/test_agent.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_agent_creation_minimal` | Minimal constructor |
-| 2 | `test_agent_creation_full` | All parameters |
-| 3 | `test_agent_run_sync` | `run()` synchronous wrapper |
-| 4 | `test_agent_arun` | `arun()` async |
-| 5 | `test_agent_astream` | `astream()` yields events |
-| 6 | `test_agent_context_manager` | `async with` lifecycle |
-| 7 | `test_agent_invoke_skill` | `invoke_skill()` method |
-| 8 | `test_agent_spawn_subagent` | `spawn_subagent()` method |
-| 9 | `test_agent_builder_classmethod` | `Agent.builder()` returns AgentBuilder |
-| 10 | `test_agent_id_generation` | Auto-generated agent_id |
-| 11 | `test_agent_custom_id` | Custom agent_id preserved |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_agent_creation_minimal` | Minimal constructor | ✅ |
+| 2 | `test_agent_creation_full` | All parameters | ✅ |
+| 3 | `test_agent_arun` | `arun()` async | ✅ |
+| 4 | `test_agent_astream` | `astream()` yields events | ✅ |
+| 5 | `test_agent_context_manager` | `async with` lifecycle | ✅ |
+| 6 | `test_agent_invoke_skill` | `invoke_skill()` method | ✅ |
+| 7 | `test_agent_spawn_subagent` | `spawn_subagent()` method | ✅ |
+| 8 | `test_agent_builder_classmethod` | `Agent.builder()` returns AgentBuilder | ✅ |
+| 9 | `test_agent_id_generation` | Auto-generated agent_id | ✅ |
+| 10 | `test_agent_custom_id` | Custom agent_id preserved | ✅ |
+| 11 | `test_agent_tools_property` | tools property returns registered tools | ✅ |
+| 12 | `test_agent_repr` | __repr__ includes id and name | ✅ |
 
 ### 8.5 `core/agent/builder.py` — AgentBuilder
 
 **File:** `tests/unit/agent/test_agent_builder.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_builder_system_prompt` | `.system_prompt()` sets prompt |
-| 2 | `test_builder_model` | `.model()` sets model |
-| 3 | `test_builder_tier` | `.tier()` sets tier |
-| 4 | `test_builder_llm` | `.llm()` sets client |
-| 5 | `test_builder_loop` | `.loop()` sets loop |
-| 6 | `test_builder_tools` | `.tools()` sets tool list |
-| 7 | `test_builder_tool_single` | `.tool()` adds one tool |
-| 8 | `test_builder_max_iterations` | `.max_iterations()` sets limit |
-| 9 | `test_builder_timeout` | `.timeout()` sets timeout |
-| 10 | `test_builder_temperature` | `.temperature()` sets temp |
-| 11 | `test_builder_middleware` | `.middleware()` sets pipeline |
-| 12 | `test_builder_human_input` | `.human_input()` sets handler |
-| 13 | `test_builder_permission_policy` | `.permission_policy()` sets policy |
-| 14 | `test_builder_memory_manager` | `.memory_manager()` sets manager |
-| 15 | `test_builder_state_store` | `.state_store()` sets store |
-| 16 | `test_builder_instructions` | `.instructions()` sets text |
-| 17 | `test_builder_instructions_file` | `.instructions_file()` sets path |
-| 18 | `test_builder_hook` | `.hook()` registers handler |
-| 19 | `test_builder_skill` | `.skill()` adds skill |
-| 20 | `test_builder_subagent` | `.subagent()` adds config |
-| 21 | `test_builder_mcp_server` | `.mcp_server()` adds MCP |
-| 22 | `test_builder_connector` | `.connector()` adds connector |
-| 23 | `test_builder_plugin` | `.plugin()` applies plugin |
-| 24 | `test_builder_chaining` | Fluent chaining returns self |
-| 25 | `test_builder_build` | `.build()` returns Agent |
-| 26 | `test_builder_build_validates` | Missing required config fails |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_builder_system_prompt` | `.system_prompt()` sets prompt | ✅ |
+| 2 | `test_builder_model` | `.model()` sets model | ✅ |
+| 3 | `test_builder_tier` | `.tier()` sets tier | ✅ |
+| 4 | `test_builder_llm` | `.llm()` sets client | ✅ |
+| 5 | `test_builder_loop` | `.loop()` sets loop | ✅ |
+| 6 | `test_builder_tools` | `.tools()` sets tool list | ✅ |
+| 7 | `test_builder_tool_single` | `.add_tool()` adds one tool | ✅ |
+| 8 | `test_builder_max_iterations` | `.max_iterations()` sets limit | ✅ |
+| 9 | `test_builder_timeout` | `.timeout()` sets timeout | ✅ |
+| 10 | `test_builder_temperature` | `.temperature()` sets temp | ✅ |
+| 11 | `test_builder_middleware` | `.middleware()` sets pipeline | ✅ |
+| 12 | `test_builder_human_input` | `.human_input()` sets handler | ✅ |
+| 13 | `test_builder_permission_policy` | `.permissions()` sets policy | ✅ |
+| 14 | `test_builder_memory_manager` | `.memory_manager()` sets manager | ✅ |
+| 15 | `test_builder_state_store` | `.state_store()` sets store | ✅ |
+| 16 | `test_builder_instructions` | `.instructions()` sets text | ✅ |
+| 17 | `test_builder_instructions_file` | `.instructions_file()` sets path | ✅ |
+| 18 | `test_builder_hook` | `.hook()` registers handler | ✅ |
+| 19 | `test_builder_skill` | `.skill()` adds skill | ✅ |
+| 20 | `test_builder_subagent` | `.subagent()` adds config | ✅ |
+| 21 | `test_builder_mcp_server` | `.mcp_server()` adds MCP | ✅ |
+| 22 | `test_builder_connector` | `.connector()` adds connector | ✅ |
+| 23 | `test_builder_plugin` | `.plugin()` applies plugin | ✅ |
+| 24 | `test_builder_chaining` | Fluent chaining returns self | ✅ |
+| 25 | `test_builder_build` | `.build()` returns Agent | ✅ |
+| 26 | `test_builder_build_with_model` | `.build()` with model creates agent | ✅ |
+| 27 | `test_builder_event_bus` | `.event_bus()` sets bus | ✅ |
+| 28 | `test_builder_checkpoint_interval` | `.checkpoint_interval()` sets interval | ✅ |
+| 29 | `test_builder_clone` | `clone()` creates independent copy | ✅ |
+| 30 | `test_builder_repr` | `__repr__` shows configured keys | ✅ |
 
 ---
 
