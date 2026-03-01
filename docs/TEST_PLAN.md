@@ -2019,8 +2019,8 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 |-------|-----------|-----------|----------|
 | 1 | Models, Exceptions, Base Classes | ✅ 206 (100% cov) | Highest |
 | 2 | Tooling System | ✅ 129 (87% cov) | Very High |
-| 3 | LLM Client & Providers | ~60 | Very High |
-| 4 | Agent Loop & Runtime | ~50 | Very High |
+| 3 | LLM Client & Providers | ✅ 92 (66% cov) | Very High |
+| 4 | Agent Loop & Runtime | ✅ 78 (64% cov) | Very High |
 | 5 | State, Checkpoint, Session | ~45 | High |
 | 6 | Memory System | ~80 | High |
 | 7 | Events, Hooks, Middleware | ~65 | High |
