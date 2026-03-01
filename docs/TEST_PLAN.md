@@ -25,7 +25,7 @@
 14. [Phase 10 — MCP & Connectors](#14-phase-10--mcp--connectors) ✅
 15. [Phase 11 — Workflow: Plan Mode & Structured Output](#15-phase-11--workflow-plan-mode--structured-output) ✅
 16. [Phase 12 — Persistence Layer](#16-phase-12--persistence-layer) ✅
-17. [Phase 13 — Built-in Tools](#17-phase-13--built-in-tools)
+17. [Phase 13 — Built-in Tools](#17-phase-13--built-in-tools) ✅
 18. [Phase 14 — Context & Credentials](#18-phase-14--context--credentials)
 19. [Phase 15 — CLI](#19-phase-15--cli)
 20. [Phase 16 — Testing Utilities (Meta-Tests)](#20-phase-16--testing-utilities-meta-tests) ✅
@@ -1460,49 +1460,49 @@ Each implementation has specific tests:
 
 **File:** `tests/unit/persistence/test_base_persistence.py`
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_base_persistence_is_abstract` | Cannot instantiate |
-| 2 | `test_base_persistence_audit_hooks` | Audit hook methods exist |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_base_persistence_is_abstract` | Cannot instantiate | ✅ |
+| 2 | `test_base_persistence_audit_hooks` | Audit hook methods exist | ✅ |
 
 ### 16.2 `persistence/sqlite.py` — SQLitePersistence
 
 **File:** `tests/unit/persistence/test_sqlite_persistence.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_sqlite_init_schema` | Schema created on init |
-| 2 | `test_sqlite_save_run` | Save AgentRun |
-| 3 | `test_sqlite_get_run_not_found` | Returns None for unknown |
-| 4 | `test_sqlite_list_runs` | List runs by agent_id |
-| 5 | `test_sqlite_update_run` | Update existing run |
-| 6 | `test_sqlite_delete_run` | Delete run, returns True/False |
-| 7 | `test_sqlite_save_event` | Save AgentRunEvent |
-| 8 | `test_sqlite_get_events_filter_by_type` | Get events, filter by event_type |
-| 9 | `test_sqlite_save_llm_usage` | Save LLM usage data |
-| 10 | `test_sqlite_get_llm_usage` | Retrieve LLM usage with filters |
-| 11 | `test_sqlite_close` | Connection closed properly |
-| 12 | `test_sqlite_health_check` | health_check returns True |
-| 13 | `test_sqlite_concurrent_access` | Multiple operations (thread safety) |
-| 14 | `test_sqlite_get_agent_run_stats` | Aggregate run/LLM stats |
-| 15 | `test_sqlite_audit_log` | log_audit_event, get_audit_events |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_sqlite_init_schema` | Schema created on init | ✅ |
+| 2 | `test_sqlite_save_run` | Save AgentRun | ✅ |
+| 3 | `test_sqlite_get_run_not_found` | Returns None for unknown | ✅ |
+| 4 | `test_sqlite_list_runs` | List runs by agent_id | ✅ |
+| 5 | `test_sqlite_update_run` | Update existing run | ✅ |
+| 6 | `test_sqlite_delete_run` | Delete run, returns True/False | ✅ |
+| 7 | `test_sqlite_save_event` | Save AgentRunEvent | ✅ |
+| 8 | `test_sqlite_get_events_filter_by_type` | Get events, filter by event_type | ✅ |
+| 9 | `test_sqlite_save_llm_usage` | Save LLM usage data | ✅ |
+| 10 | `test_sqlite_get_llm_usage` | Retrieve LLM usage with filters | ✅ |
+| 11 | `test_sqlite_close` | Connection closed properly | ✅ |
+| 12 | `test_sqlite_health_check` | health_check returns True | ✅ |
+| 13 | `test_sqlite_concurrent_access` | Multiple operations (thread safety) | ✅ |
+| 14 | `test_sqlite_get_agent_run_stats` | Aggregate run/LLM stats | ✅ |
+| 15 | `test_sqlite_audit_log` | log_audit_event, get_audit_events | ✅ |
 
 ### 16.3 `persistence/memory.py` — InMemoryPersistence
 
 **File:** `tests/unit/persistence/test_memory_persistence.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_inmemory_save_get_run` | Save and retrieve |
-| 2 | `test_inmemory_list_runs` | List runs with pagination |
-| 3 | `test_inmemory_save_events` | Save and get events |
-| 4 | `test_inmemory_save_usage` | Save and get usage |
-| 5 | `test_inmemory_update_run` | Update existing run |
-| 6 | `test_inmemory_delete_run` | Delete run |
-| 7 | `test_inmemory_get_agent_run_stats` | Aggregate stats |
-| 8 | `test_inmemory_clear_all` | clear_all wipes data |
-| 9 | `test_inmemory_get_all_data` | get_all_data for debugging |
-| 10 | `test_inmemory_audit_events` | log_audit_event, get_audit_events |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_inmemory_save_get_run` | Save and retrieve | ✅ |
+| 2 | `test_inmemory_list_runs` | List runs with pagination | ✅ |
+| 3 | `test_inmemory_save_events` | Save and get events | ✅ |
+| 4 | `test_inmemory_save_usage` | Save and get usage | ✅ |
+| 5 | `test_inmemory_update_run` | Update existing run | ✅ |
+| 6 | `test_inmemory_delete_run` | Delete run | ✅ |
+| 7 | `test_inmemory_get_agent_run_stats` | Aggregate stats | ✅ |
+| 8 | `test_inmemory_clear_all` | clear_all wipes data | ✅ |
+| 9 | `test_inmemory_get_all_data` | get_all_data for debugging | ✅ |
+| 10 | `test_inmemory_audit_events` | log_audit_event, get_audit_events | ✅ |
 
 **Coverage breakdown (Phase 12 — base, sqlite, memory, \_\_init\_\_):**
 
@@ -1520,53 +1520,64 @@ Each implementation has specific tests:
 
 ## 17. Phase 13 — Built-in Tools
 
-**Priority:** Medium
-**Estimated tests:** ~25
+**Priority:** Medium  
+**Estimated tests:** ~25 → **Actual: 21 tests written, 21 passed (83% cov)**  
+**Status:** ✅ COMPLETED
+
+**Coverage breakdown (Phase 13 — file, code, web, http):**
+
+| Module | Stmts | Miss | Cover |
+|--------|-------|------|-------|
+| `tools/file.py` | 25 | 5 | 80% |
+| `tools/code.py` | 53 | 8 | 85% |
+| `tools/web.py` | 21 | 1 | 95% |
+| `tools/http.py` | 35 | 9 | 74% |
+| **Total (Phase 13 scope)** | **134** | **23** | **83%** |
 
 ### 17.1 File Tools
 
 **File:** `tests/unit/built_in_tools/test_file_tools.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_file_read_existing` | Read existing file |
-| 2 | `test_file_read_not_found` | File not found handling |
-| 3 | `test_file_write_new` | Write new file |
-| 4 | `test_file_write_overwrite` | Overwrite existing |
-| 5 | `test_file_read_is_tool` | Registered as Tool |
-| 6 | `test_file_write_is_tool` | Registered as Tool |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_file_read_existing` | Read existing file | ✅ |
+| 2 | `test_file_read_not_found` | File not found handling | ✅ |
+| 3 | `test_file_write_new` | Write new file | ✅ |
+| 4 | `test_file_write_overwrite` | Overwrite existing | ✅ |
+| 5 | `test_file_read_is_tool` | Registered as Tool | ✅ |
+| 6 | `test_file_write_is_tool` | Registered as Tool | ✅ |
 
 ### 17.2 Code Tools
 
 **File:** `tests/unit/built_in_tools/test_code_tools.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_python_execute_simple` | Execute simple expression |
-| 2 | `test_python_execute_output` | Capture stdout |
-| 3 | `test_python_execute_error` | Handle syntax/runtime errors |
-| 4 | `test_shell_execute_simple` | Run shell command |
-| 5 | `test_shell_execute_error` | Handle command errors |
-| 6 | `test_shell_execute_timeout` | Timeout enforcement |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_python_execute_simple` | Execute simple expression | ✅ |
+| 2 | `test_python_execute_output` | Capture stdout | ✅ |
+| 3 | `test_python_execute_error` | Handle syntax/runtime errors | ✅ |
+| 4 | `test_shell_execute_simple` | Run shell command | ✅ |
+| 5 | `test_shell_execute_error` | Handle command errors | ✅ |
+| 6 | `test_shell_execute_timeout` | Timeout enforcement | ✅ |
 
 ### 17.3 Web/HTTP Tools
 
 **File:** `tests/unit/built_in_tools/test_web_tools.py`
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_web_fetch_success` | Fetch URL (mocked httpx) |
-| 2 | `test_web_fetch_error` | HTTP error handling |
-| 3 | `test_web_fetch_timeout` | Timeout handling |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_web_fetch_success` | Fetch URL (mocked urllib) | ✅ |
+| 2 | `test_web_fetch_error` | HTTP error handling | ✅ |
+| 3 | `test_web_fetch_timeout` | Timeout handling | ✅ |
 
 **File:** `tests/unit/built_in_tools/test_http_tools.py`
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_http_get` | GET request |
-| 2 | `test_http_post` | POST with body |
-| 3 | `test_http_headers` | Custom headers |
-| 4 | `test_http_error` | Error handling |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_http_get` | GET request | ✅ |
+| 2 | `test_http_post` | POST with body | ✅ |
+| 3 | `test_http_headers` | Custom headers | ✅ |
+| 4 | `test_http_error` | Error handling | ✅ |
 
 ---
 
@@ -2247,7 +2258,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 10 | MCP & Connectors | ✅ 83 (78% cov) | Medium |
 | 11 | Plan Mode & Structured Output | ✅ 30 (78% cov) | Medium |
 | 12 | Persistence Layer | ✅ 27 (85% cov) | Medium |
-| 13 | Built-in Tools | ~25 | Medium |
+| 13 | Built-in Tools | ✅ 21 (83% cov) | Medium |
 | 14 | Context & Credentials | ~25 | Medium |
 | 15 | CLI | ~10 | Low |
 | 16 | Testing Utilities (Meta) | ✅ 55 (72% cov) | High |
