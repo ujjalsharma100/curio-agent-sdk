@@ -21,7 +21,7 @@
 10. [Phase 6 — Memory System](#10-phase-6--memory-system) ✅
 11. [Phase 7 — Events, Hooks & Middleware](#11-phase-7--events-hooks--middleware) ✅
 12. [Phase 8 — Security & Permissions](#12-phase-8--security--permissions) ✅
-13. [Phase 9 — Extensions: Skills, Subagents & Plugins](#13-phase-9--extensions-skills-subagents--plugins)
+13. [Phase 9 — Extensions: Skills, Subagents & Plugins](#13-phase-9--extensions-skills-subagents--plugins) ✅
 14. [Phase 10 — MCP & Connectors](#14-phase-10--mcp--connectors)
 15. [Phase 11 — Workflow: Plan Mode & Structured Output](#15-phase-11--workflow-plan-mode--structured-output)
 16. [Phase 12 — Persistence Layer](#16-phase-12--persistence-layer)
@@ -1156,56 +1156,130 @@ Each implementation has specific tests:
 
 ---
 
-## 13. Phase 9 — Extensions: Skills, Subagents & Plugins
+## 13. Phase 9 — Extensions: Skills, Subagents & Plugins ✅
 
 **Priority:** Medium
-**Estimated tests:** ~40
+**Actual tests:** 89 (94% coverage)
+**Status:** Completed
+
+**Coverage breakdown:**
+| Module | Stmts | Miss | Cover |
+|--------|-------|------|-------|
+| `core/extensions/__init__.py` | 4 | 0 | 100% |
+| `core/extensions/plugins.py` | 109 | 2 | 98% |
+| `core/extensions/skills.py` | 151 | 9 | 94% |
+| `core/extensions/subagent.py` | 108 | 10 | 91% |
+| **TOTAL** | **372** | **21** | **94%** |
 
 ### 13.1 `core/extensions/skills.py`
 
 **File:** `tests/unit/extensions/test_skills.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_skill_creation` | Create Skill dataclass |
-| 2 | `test_skill_combined_prompt` | `get_combined_prompt()` |
-| 3 | `test_skill_from_directory` | Load skill from directory |
-| 4 | `test_skill_with_tools` | Skill has associated tools |
-| 5 | `test_skill_with_hooks` | Skill has associated hooks |
-| 6 | `test_skill_registry_register` | Register skill |
-| 7 | `test_skill_registry_get` | Get skill by name |
-| 8 | `test_skill_registry_activate` | Activate skills for state |
-| 9 | `test_skill_registry_deactivate` | Deactivate skills |
-| 10 | `test_skill_registry_get_active_prompts` | Get active skill prompts |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_skill_creation_defaults` | Skill dataclass defaults | ✅ |
+| 2 | `test_skill_creation_full` | Skill with all fields | ✅ |
+| 3 | `test_skill_combined_prompt_both` | `get_combined_prompt()` system + instructions | ✅ |
+| 4 | `test_skill_combined_prompt_system_only` | Prompt system only | ✅ |
+| 5 | `test_skill_combined_prompt_instructions_only` | Prompt instructions only | ✅ |
+| 6 | `test_skill_combined_prompt_empty` | Empty prompt | ✅ |
+| 7 | `test_skill_combined_prompt_strips_whitespace` | Whitespace stripping | ✅ |
+| 8 | `test_from_directory_basic` | Load skill from directory | ✅ |
+| 9 | `test_from_directory_yml_extension` | YAML extension accepted | ✅ |
+| 10 | `test_from_directory_no_manifest_raises` | No manifest raises | ✅ |
+| 11 | `test_from_directory_not_a_dir` | Not a dir raises | ✅ |
+| 12 | `test_from_directory_with_tools` | Skill with tools from dir | ✅ |
+| 13 | `test_from_directory_with_hooks` | Skill with hooks from dir | ✅ |
+| 14 | `test_from_directory_hooks_with_priority` | Hook priority | ✅ |
+| 15 | `test_from_directory_missing_prompt_file` | Missing prompt file | ✅ |
+| 16 | `test_from_directory_missing_tools_file` | Missing tools file | ✅ |
+| 17 | `test_from_directory_instructions` | Instructions from file | ✅ |
+| 18 | `test_from_directory_name_falls_back_to_dirname` | Name fallback to dirname | ✅ |
+| 19 | `test_load_yaml_basic` | _load_yaml basic | ✅ |
+| 20 | `test_load_yaml_empty` | _load_yaml empty | ✅ |
+| 21 | `test_tools_from_module_TOOLS_var` | _load_tools_from_module | ✅ |
+| 22 | `test_tools_from_module_not_found` | Tools module not found | ✅ |
+| 23 | `test_hooks_from_module_HOOKS_var` | _load_hooks_from_module | ✅ |
+| 24 | `test_hooks_from_module_not_found` | Hooks module not found | ✅ |
+| 25 | `test_register_and_get` | Register and get skill | ✅ |
+| 26 | `test_list_skills` | List registered skills | ✅ |
+| 27 | `test_list_names` | List skill names | ✅ |
+| 28 | `test_activate_adds_tools_and_prompts` | Activate adds tools/prompts to state | ✅ |
+| 29 | `test_activate_unknown_skill_raises` | Activate unknown raises | ✅ |
+| 30 | `test_activate_double_is_noop` | Double activate is no-op | ✅ |
+| 31 | `test_deactivate_removes_tools_and_prompts` | Deactivate removes from state | ✅ |
+| 32 | `test_deactivate_not_active_is_noop` | Deactivate inactive is no-op | ✅ |
+| 33 | `test_no_active_skills` | get_active_skill_prompts empty | ✅ |
+| 34 | `test_single_active_skill` | Single active skill prompt | ✅ |
+| 35 | `test_multiple_active_skills` | Multiple active skill prompts | ✅ |
 
 ### 13.2 `core/extensions/subagent.py`
 
 **File:** `tests/unit/extensions/test_subagent.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_subagent_config_creation` | SubagentConfig defaults |
-| 2 | `test_subagent_config_custom` | Custom subagent config |
-| 3 | `test_orchestrator_register` | Register subagent config |
-| 4 | `test_orchestrator_spawn` | Spawn subagent with task |
-| 5 | `test_orchestrator_spawn_background` | Spawn in background |
-| 6 | `test_orchestrator_get_result` | Get background result |
-| 7 | `test_orchestrator_handoff` | Handoff to another agent |
-| 8 | `test_subagent_inherits_memory` | `inherit_memory=True` |
-| 9 | `test_subagent_inherits_tools` | `inherit_tools=True` |
-| 10 | `test_subagent_inherits_hooks` | `inherit_hooks=True` |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_defaults` | SubagentConfig defaults | ✅ |
+| 2 | `test_custom_values` | Custom subagent config | ✅ |
+| 3 | `test_register_and_get` | Register and get config | ✅ |
+| 4 | `test_get_unknown_returns_none` | Get unknown config returns None | ✅ |
+| 5 | `test_list_names` | List registered names | ✅ |
+| 6 | `test_register_renames_config` | Register key renames config | ✅ |
+| 7 | `test_spawn_with_config` | Spawn with config object | ✅ |
+| 8 | `test_spawn_by_name` | Spawn by registered name | ✅ |
+| 9 | `test_spawn_unknown_name_raises` | Spawn unknown name raises | ✅ |
+| 10 | `test_spawn_closes_on_error` | Spawn closes subagent on error | ✅ |
+| 11 | `test_spawn_background_returns_task_id` | Spawn in background returns task_id | ✅ |
+| 12 | `test_get_result_returns_none_while_running` | get_result while running returns None | ✅ |
+| 13 | `test_get_result_unknown_task_returns_none` | get_result unknown task returns None | ✅ |
+| 14 | `test_spawn_background_handles_error` | Background spawn error handling | ✅ |
+| 15 | `test_handoff_without_messages` | Handoff with no messages | ✅ |
+| 16 | `test_handoff_with_messages` | Handoff with messages | ✅ |
+| 17 | `test_handoff_with_empty_messages_calls_arun` | Handoff empty messages still calls arun | ✅ |
+| 18 | `test_inherit_tools` | `inherit_tools=True` | ✅ |
+| 19 | `test_inherit_memory` | `inherit_memory=True` | ✅ |
+| 20 | `test_inherit_hooks` | `inherit_hooks=True` | ✅ |
+| 21 | `test_custom_model` | Subagent custom model | ✅ |
+| 22 | `test_no_model_uses_parent_llm` | No model uses parent LLM | ✅ |
 
 ### 13.3 `core/extensions/plugins.py`
 
 **File:** `tests/unit/extensions/test_plugins.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_plugin_is_abstract` | Cannot instantiate |
-| 2 | `test_plugin_register` | `register()` modifies builder |
-| 3 | `test_apply_plugins_to_builder` | Apply list of plugins |
-| 4 | `test_discover_plugins` | Entry point discovery |
-| 5 | `test_plugin_name_version` | Plugin metadata |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_cannot_instantiate_base_class` | Plugin base is abstract | ✅ |
+| 2 | `test_concrete_subclass_works` | Concrete Plugin subclass works | ✅ |
+| 3 | `test_name_and_version` | Plugin name and version | ✅ |
+| 4 | `test_default_dependencies` | Default dependencies | ✅ |
+| 5 | `test_custom_dependencies` | Custom dependencies | ✅ |
+| 6 | `test_provides_tools_default` | provides_tools default | ✅ |
+| 7 | `test_provides_hooks_default` | provides_hooks default | ✅ |
+| 8 | `test_config_default_empty` | config default empty | ✅ |
+| 9 | `test_register_called_with_builder` | register() receives builder | ✅ |
+| 10 | `test_valid_config` | Valid config passes validation | ✅ |
+| 11 | `test_missing_required_config_raises` | Missing required config raises | ✅ |
+| 12 | `test_no_schema_skips_validation` | No schema skips validation | ✅ |
+| 13 | `test_lifecycle_order` | on_install, register, on_enable order | ✅ |
+| 14 | `test_on_disable` | on_disable hook | ✅ |
+| 15 | `test_no_dependencies` | _toposort no deps | ✅ |
+| 16 | `test_simple_dependency` | _toposort simple dep | ✅ |
+| 17 | `test_chain_dependency` | _toposort chain | ✅ |
+| 18 | `test_unknown_dependency_logged` | Unknown dependency logged | ✅ |
+| 19 | `test_cycle_handled` | Cycle in deps handled | ✅ |
+| 20 | `test_duplicate_name_keeps_last` | Duplicate name keeps last | ✅ |
+| 21 | `test_no_conflicts` | _detect_conflicts none | ✅ |
+| 22 | `test_tool_conflict` | _detect_conflicts tool clash | ✅ |
+| 23 | `test_no_provides` | No provides_tools/hooks | ✅ |
+| 24 | `test_applies_in_dependency_order` | apply_plugins_to_builder order | ✅ |
+| 25 | `test_lifecycle_hooks_invoked` | Lifecycle hooks invoked | ✅ |
+| 26 | `test_empty_plugins_list` | Empty plugins list no-op | ✅ |
+| 27 | `test_plugin_register_failure_raises` | Plugin register failure raises | ✅ |
+| 28 | `test_discover_with_no_entry_points` | discover_plugins no entry points | ✅ |
+| 29 | `test_discover_loads_plugin_class` | discover loads Plugin class | ✅ |
+| 30 | `test_discover_loads_plugin_instance` | discover loads Plugin instance | ✅ |
+| 31 | `test_discover_skips_non_plugin` | discover skips non-Plugin | ✅ |
+| 32 | `test_discover_handles_load_error` | discover handles load error | ✅ |
 
 ---
 
@@ -2094,7 +2168,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 6 | Memory System | ✅ 107 (80% cov) | High |
 | 7 | Events, Hooks, Middleware | ✅ 73 (54% cov) | High |
 | 8 | Security & Permissions | ✅ 44 (82% cov) | High |
-| 9 | Extensions (Skills, Subagents, Plugins) | ~40 | Medium |
+| 9 | Extensions (Skills, Subagents, Plugins) | ✅ 89 (94% cov) | Medium |
 | 10 | MCP & Connectors | ~35 | Medium |
 | 11 | Plan Mode & Structured Output | ~30 | Medium |
 | 12 | Persistence Layer | ~30 | Medium |
