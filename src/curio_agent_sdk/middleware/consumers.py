@@ -87,6 +87,7 @@ class TracingConsumer:
     ) -> None:
         self._enabled = _otel_available
 
+        self._handlers = []
         if not self._enabled:
             logger.warning(
                 "opentelemetry-api is not installed. "
@@ -130,9 +131,6 @@ class TracingConsumer:
         self._tool_spans: dict[str, Any] = {}
         self._tool_start_times: dict[str, float] = {}
         self._run_spans: dict[str, Any] = {}
-
-        # Keep handler references for detach()
-        self._handlers: list[tuple[str, Any]] = []
 
     # -- attach / detach ---------------------------------------------------
 
