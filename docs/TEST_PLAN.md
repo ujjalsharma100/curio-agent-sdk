@@ -20,7 +20,7 @@
 9. [Phase 5 — State, Checkpoint & Session Management](#9-phase-5--state-checkpoint--session-management) ✅
 10. [Phase 6 — Memory System](#10-phase-6--memory-system) ✅
 11. [Phase 7 — Events, Hooks & Middleware](#11-phase-7--events-hooks--middleware) ✅
-12. [Phase 8 — Security & Permissions](#12-phase-8--security--permissions)
+12. [Phase 8 — Security & Permissions](#12-phase-8--security--permissions) ✅
 13. [Phase 9 — Extensions: Skills, Subagents & Plugins](#13-phase-9--extensions-skills-subagents--plugins)
 14. [Phase 10 — MCP & Connectors](#14-phase-10--mcp--connectors)
 15. [Phase 11 — Workflow: Plan Mode & Structured Output](#15-phase-11--workflow-plan-mode--structured-output)
@@ -1114,42 +1114,45 @@ Each implementation has specific tests:
 
 ---
 
-## 12. Phase 8 — Security & Permissions
+## 12. Phase 8 — Security & Permissions ✅
 
 **Priority:** High
-**Estimated tests:** ~30
+**Estimated tests:** ~30 → **44 tests written, 44 passed, 82% coverage**
+**Status:** ✅ COMPLETED
 
-### 12.1 `core/security/permissions.py`
+### 12.1 `core/security/permissions.py` ✅
 
-**File:** `tests/unit/security/test_permissions.py`
+**File:** `tests/unit/security/test_permissions.py` — **36 tests, all passing**
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_permission_result_allow` | `PermissionResult.allow()` |
-| 2 | `test_permission_result_deny` | `PermissionResult.deny()` |
-| 3 | `test_permission_result_ask` | `PermissionResult.ask()` |
-| 4 | `test_allow_all_policy` | AllowAll always allows |
-| 5 | `test_ask_always_policy` | AskAlways always asks |
-| 6 | `test_allow_reads_ask_writes` | Read allowed, write asks |
-| 7 | `test_compound_policy_all_allow` | All sub-policies allow |
-| 8 | `test_compound_policy_one_deny` | One deny → overall deny |
-| 9 | `test_file_sandbox_policy_allowed` | Path within sandbox |
-| 10 | `test_file_sandbox_policy_denied` | Path outside sandbox |
-| 11 | `test_file_sandbox_path_traversal` | `../` traversal blocked |
-| 12 | `test_network_sandbox_allowed` | URL in allowlist |
-| 13 | `test_network_sandbox_denied` | URL not in allowlist |
-| 14 | `test_check_file_access` | `check_file_access()` method |
-| 15 | `test_check_network_access` | `check_network_access()` method |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_permission_result_allow` | `PermissionResult.allow()` | ✅ |
+| 2 | `test_permission_result_deny` | `PermissionResult.deny()` | ✅ |
+| 3 | `test_permission_result_ask` | `PermissionResult.ask()` | ✅ |
+| 4 | `test_allow_all_policy` | AllowAll always allows | ✅ |
+| 5 | `test_ask_always_policy` | AskAlways always asks | ✅ |
+| 6 | `test_allow_reads_ask_writes` | Read allowed, write asks | ✅ |
+| 7 | `test_compound_policy_all_allow` | All sub-policies allow | ✅ |
+| 8 | `test_compound_policy_one_deny` | One deny → overall deny | ✅ |
+| 9 | `test_file_sandbox_policy_allowed` | Path within sandbox | ✅ |
+| 10 | `test_file_sandbox_policy_denied` | Path outside sandbox | ✅ |
+| 11 | `test_file_sandbox_path_traversal` | `../` traversal blocked | ✅ |
+| 12 | `test_network_sandbox_allowed` | URL in allowlist | ✅ |
+| 13 | `test_network_sandbox_denied` | URL not in allowlist | ✅ |
+| 14 | `test_check_file_access` | `check_file_access()` method | ✅ |
+| 15 | `test_check_network_access` | `check_network_access()` method | ✅ |
+| + | Additional: AllowReadsAskWrites file/network, CompoundPolicy ask/empty, FileSandboxPolicy check_tool_call, NetworkSandboxPolicy regex/scheme/tool_call, _collect_paths_from_args, _collect_urls_from_args | Full coverage of permissions and helpers | ✅ |
 
-### 12.2 `core/security/human_input.py`
+### 12.2 `core/security/human_input.py` ✅
 
-**File:** `tests/unit/security/test_human_input.py`
+**File:** `tests/unit/security/test_human_input.py` — **8 tests, all passing**
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_human_input_handler_is_abstract` | Cannot instantiate |
-| 2 | `test_mock_human_input_approve` | Mock handler approves |
-| 3 | `test_mock_human_input_deny` | Mock handler denies |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_human_input_handler_is_abstract` | Cannot instantiate | ✅ |
+| 2 | `test_mock_human_input_approve` | Mock handler approves | ✅ |
+| 3 | `test_mock_human_input_deny` | Mock handler denies | ✅ |
+| + | Additional: CLIHumanInput approve/deny/yes/empty, get_input | CLI handler behavior | ✅ |
 
 ---
 
@@ -2090,7 +2093,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 5 | State, Checkpoint, Session | ✅ 49 (86% cov) | High |
 | 6 | Memory System | ✅ 107 (80% cov) | High |
 | 7 | Events, Hooks, Middleware | ✅ 73 (54% cov) | High |
-| 8 | Security & Permissions | ~30 | High |
+| 8 | Security & Permissions | ✅ 44 (82% cov) | High |
 | 9 | Extensions (Skills, Subagents, Plugins) | ~40 | Medium |
 | 10 | MCP & Connectors | ~35 | Medium |
 | 11 | Plan Mode & Structured Output | ~30 | Medium |
