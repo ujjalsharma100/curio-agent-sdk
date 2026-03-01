@@ -2,7 +2,7 @@
 
 A composable, async-first, production-grade agent harness for building AI agents — from simple tool-calling bots to coding agents, deep research systems, computer-use agents, and multi-agent orchestrations.
 
-**v0.6.0** — Every component is independently usable and replaceable. Convention over configuration. Zero mandatory dependencies beyond Python stdlib + an LLM provider.
+**v0.6.0** — Every component is independently usable and replaceable. Convention over configuration. Zero mandatory dependencies beyond Python stdlib + `httpx` + `python-dotenv`.
 
 ## Quick Start
 
@@ -29,7 +29,7 @@ print(result.output)
 ### Builder Pattern
 
 ```python
-from curio_agent_sdk import Agent, SubagentConfig
+from curio_agent_sdk import Agent, SubagentConfig, AllowReadsAskWrites
 
 agent = Agent.builder() \
     .model("anthropic:claude-sonnet-4-6") \
@@ -90,20 +90,27 @@ async with agent:
 
 ## Installation
 
-From the repo root (or package directory):
-
 ```bash
 pip install -e .
 
-# Provider-specific
+# Provider-specific extras
+pip install -e ".[openai]"       # OpenAI + tiktoken
+pip install -e ".[anthropic]"    # Anthropic
+pip install -e ".[all]"          # All providers + optional deps
+
+# Or install providers directly
 pip install openai anthropic groq
 
 # Optional extras
 pip install pydantic>=2.0         # Structured output
 pip install pyautogui             # Computer use tools
 pip install playwright            # Browser automation
-pip install opentelemetry-api     # OpenTelemetry tracing
+
+# Development
+pip install -e ".[dev]"           # pytest, black, isort, mypy, ruff
 ```
+
+**Requires Python 3.11+**
 
 ## Configuration
 
@@ -132,35 +139,23 @@ agent = Agent(model="ollama:llama3.1:8b", ...)
 
 ## Architecture
 
-Package uses a **src layout**. Install with `pip install -e .` from repo root.
+Uses a **src layout**. Install with `pip install -e .` from the repo root.
 
 ```
-project_root/
+curio_agent_sdk/
 ├── src/
 │   └── curio_agent_sdk/
-│       ├── __init__.py                 # Public API (re-exports)
+│       ├── __init__.py                 # Public API (re-exports everything)
 │       ├── base/
-│       │   ├── __init__.py
-│       │   └── component.py             # Component ABC (lifecycle)
-│       ├── credentials/
-│       │   ├── __init__.py
-│       │   └── credentials.py           # CredentialResolver (Vault, AWS, env)
-│       ├── resilience/
-│       │   ├── __init__.py
-│       │   └── circuit_breaker.py       # CircuitBreaker
-│       ├── config/
-│       ├── cli/
-│       │   ├── __init__.py
-│       │   └── cli.py                   # AgentCLI interactive harness
+│       │   └── component.py             # Component ABC (startup/shutdown/health_check)
 │       ├── core/
-│       │   ├── __init__.py
 │       │   ├── agent/
 │       │   │   ├── agent.py             # Agent (thin shell)
 │       │   │   ├── builder.py           # AgentBuilder (fluent API)
 │       │   │   └── runtime.py           # Runtime (orchestration engine)
 │       │   ├── state/
 │       │   │   ├── state.py             # AgentState + typed extensions
-│       │   │   ├── state_store.py       # StateStore ABC + implementations
+│       │   │   ├── state_store.py       # StateStore ABC + InMemory/File implementations
 │       │   │   ├── checkpoint.py        # Checkpoint serialization
 │       │   │   └── session.py           # SessionManager + SessionStore
 │       │   ├── context/
@@ -170,101 +165,116 @@ project_root/
 │       │   │   ├── hooks.py             # HookRegistry + HookContext
 │       │   │   └── event_bus.py         # EventBus + InMemoryEventBus
 │       │   ├── extensions/
-│       │   │   ├── plugins.py           # Plugin ABC + discovery
+│       │   │   ├── plugins.py           # Plugin ABC + entry-point discovery
 │       │   │   ├── skills.py            # Skill + SkillRegistry
 │       │   │   └── subagent.py          # SubagentConfig + AgentOrchestrator
 │       │   ├── workflow/
 │       │   │   ├── plan_mode.py         # PlanMode + TodoManager
-│       │   │   ├── task_manager.py      # TaskManager (long-running tasks)
+│       │   │   ├── task_manager.py      # TaskManager (background tasks)
 │       │   │   └── structured_output.py # Pydantic structured output
 │       │   ├── security/
-│       │   │   ├── permissions.py       # PermissionPolicy + sandbox
+│       │   │   ├── permissions.py       # PermissionPolicy + sandboxing
 │       │   │   └── human_input.py       # Human-in-the-loop
 │       │   ├── loops/
 │       │   │   ├── base.py              # AgentLoop ABC
 │       │   │   └── tool_calling.py      # Standard tool calling loop
 │       │   ├── tools/
 │       │   │   ├── tool.py              # Tool class + @tool decorator
-│       │   │   ├── schema.py            # ToolSchema (JSON Schema)
+│       │   │   ├── schema.py            # ToolSchema (JSON Schema from type hints)
 │       │   │   ├── registry.py          # ToolRegistry
 │       │   │   └── executor.py          # Async ToolExecutor
 │       │   └── llm/
 │       │       ├── client.py            # LLMClient (async, dedup, batch)
-│       │       ├── router.py            # TieredRouter + degradation
-│       │       ├── token_counter.py    # Token counting (cached)
+│       │       ├── router.py            # TieredRouter + degradation strategies
+│       │       ├── token_counter.py     # Token counting (cached)
 │       │       ├── batch_client.py      # BatchLLMClient
 │       │       └── providers/
-│       │           ├── base.py         # LLMProvider ABC
+│       │           ├── base.py          # LLMProvider ABC
 │       │           ├── openai.py        # OpenAI (tools, streaming, vision)
 │       │           ├── anthropic.py     # Anthropic (tools, streaming, cache)
-│       │           ├── groq.py          # Groq
-│       │           └── ollama.py       # Ollama (on-premise)
+│       │           ├── groq.py          # Groq (OpenAI-compatible)
+│       │           └── ollama.py        # Ollama (on-premise, OpenAI-compatible)
 │       ├── models/
-│       │   ├── llm.py                  # Message, ToolCall, LLMRequest/Response
-│       │   ├── agent.py                # AgentRun, AgentRunResult
-│       │   ├── events.py               # EventType, StreamEvent, AgentEvent
-│       │   └── exceptions.py           # Custom exception hierarchy
+│       │   ├── llm.py                   # Message, ToolCall, LLMRequest/Response
+│       │   ├── agent.py                 # AgentRun, AgentRunResult, AgentRunStatus
+│       │   ├── events.py                # EventType, StreamEvent, AgentEvent
+│       │   └── exceptions.py            # Custom exception hierarchy
 │       ├── middleware/
-│       │   ├── base.py                 # Middleware ABC + MiddlewarePipeline
-│       │   ├── logging_mw.py           # Structured logging
-│       │   ├── cost_tracker.py         # Cost tracking, budgets, alerts
-│       │   ├── rate_limit.py           # Per-user/agent rate limiting
+│       │   ├── base.py                  # Middleware ABC + MiddlewarePipeline
+│       │   ├── logging_mw.py            # Structured logging
+│       │   ├── cost_tracker.py          # Cost tracking, budgets, alerts
+│       │   ├── rate_limit.py            # Per-user/agent rate limiting
 │       │   ├── tracing.py              # OpenTelemetry tracing + metrics
-│       │   ├── guardrails.py           # Content safety, PII, injection
-│       │   ├── consumers.py            # Hook-based observability consumers
-│       │   └── prometheus.py           # Prometheus/Grafana export
+│       │   ├── guardrails.py            # Content safety, PII, injection blocking
+│       │   ├── consumers.py             # Hook-based observability consumers
+│       │   └── prometheus.py            # Prometheus/Grafana export
 │       ├── memory/
-│       │   ├── base.py                 # Memory ABC
-│       │   ├── manager.py              # MemoryManager + strategies
-│       │   ├── conversation.py         # Sliding window memory
-│       │   ├── vector.py               # Semantic search (embeddings)
-│       │   ├── key_value.py            # Key-value store
-│       │   ├── composite.py            # Combine multiple memory types
-│       │   ├── working.py              # Ephemeral scratchpad
-│       │   ├── episodic.py             # Temporal experience memory
-│       │   ├── graph.py                # Entity-relationship knowledge graph
-│       │   ├── self_editing.py         # MemGPT/Letta-style core + archival
-│       │   ├── file_memory.py          # File-based persistent memory
-│       │   └── policies.py             # Decay, importance, summarization
+│       │   ├── base.py                  # Memory ABC
+│       │   ├── manager.py              # MemoryManager + injection/save/query strategies
+│       │   ├── conversation.py          # Sliding window memory
+│       │   ├── vector.py                # Semantic search (embeddings)
+│       │   ├── key_value.py             # Key-value store
+│       │   ├── composite.py             # Combine multiple memory types
+│       │   ├── working.py               # Ephemeral scratchpad
+│       │   ├── episodic.py              # Temporal experience memory
+│       │   ├── graph.py                 # Entity-relationship knowledge graph
+│       │   ├── self_editing.py          # MemGPT/Letta-style core + archival
+│       │   ├── file_memory.py           # File-based persistent memory
+│       │   └── policies.py              # Decay, importance, summarization
 │       ├── persistence/
-│       │   ├── base.py                 # BasePersistence ABC + audit logs
-│       │   ├── audit_hooks.py           # register_audit_hooks (wire to persistence)
-│       │   ├── sqlite.py               # SQLite backend
-│       │   ├── postgres.py             # PostgreSQL backend
-│       │   └── memory.py               # In-memory backend
+│       │   ├── base.py                  # BasePersistence ABC + audit logs
+│       │   ├── audit_hooks.py           # register_audit_hooks
+│       │   ├── sqlite.py                # SQLite backend
+│       │   ├── postgres.py              # PostgreSQL backend
+│       │   └── memory.py                # In-memory backend
 │       ├── mcp/
-│       │   ├── client.py               # MCPClient (stdio + HTTP)
-│       │   ├── transport.py            # StdioTransport, HTTPTransport
-│       │   ├── config.py               # MCPServerConfig, load from file
-│       │   ├── adapter.py              # MCP → Curio Tool adapter
-│       │   └── bridge.py               # MCPBridge (Component lifecycle)
+│       │   ├── client.py                # MCPClient (stdio + HTTP)
+│       │   ├── transport.py             # StdioTransport, HTTPTransport
+│       │   ├── config.py                # MCPServerConfig, load from file
+│       │   ├── adapter.py               # MCP → Curio Tool adapter
+│       │   └── bridge.py                # MCPBridge (Component lifecycle)
 │       ├── connectors/
-│       │   ├── base.py                 # Connector ABC + ConnectorResource
-│       │   └── bridge.py               # ConnectorBridge (Component lifecycle)
-│       ├── tools/                      # Built-in tools
-│       │   ├── web.py                  # web_fetch
-│       │   ├── code.py                 # python_execute, shell_execute
-│       │   ├── file.py                 # file_read, file_write
-│       │   ├── http.py                 # http_request
-│       │   ├── computer_use.py         # ComputerUseToolkit
+│       │   ├── base.py                  # Connector ABC + ConnectorResource
+│       │   └── bridge.py                # ConnectorBridge (Component lifecycle)
+│       ├── credentials/
+│       │   └── credentials.py           # CredentialResolver (Vault, AWS, env)
+│       ├── resilience/
+│       │   └── circuit_breaker.py       # CircuitBreaker
+│       ├── cli/
+│       │   └── cli.py                   # AgentCLI interactive harness
+│       ├── tools/                       # Built-in tools
+│       │   ├── web.py                   # web_fetch
+│       │   ├── code.py                  # python_execute, shell_execute
+│       │   ├── file.py                  # file_read, file_write
+│       │   ├── http.py                  # http_request
+│       │   ├── computer_use.py          # ComputerUseToolkit
 │       │   └── browser.py              # BrowserToolkit (Playwright)
-│       └── testing/
-│           ├── mock_llm.py             # MockLLM, text_response, tool_call_response
-│           ├── harness.py              # AgentTestHarness
-│           ├── fixtures.py             # Pytest fixtures
-│           ├── coverage.py             # AgentCoverageTracker
-│           ├── replay.py               # RecordingMiddleware, ReplayLLMClient
-│           ├── toolkit.py              # ToolTestKit
-│           ├── integration.py          # MultiAgentTestHarness
-│           ├── snapshot.py            # SnapshotTester
-│           ├── benchmark.py            # BenchmarkSuite
-│           ├── eval.py                 # AgentEvalSuite
-│           └── regression.py           # RegressionDetector
+│       └── testing/                     # Testing utilities
+│           ├── mock_llm.py              # MockLLM, text_response, tool_call_response
+│           ├── harness.py               # AgentTestHarness
+│           ├── fixtures.py              # Pytest fixtures
+│           ├── coverage.py              # AgentCoverageTracker
+│           ├── replay.py                # RecordingMiddleware, ReplayLLMClient
+│           ├── toolkit.py               # ToolTestKit
+│           ├── integration.py           # MultiAgentTestHarness
+│           ├── snapshot.py              # SnapshotTester
+│           ├── benchmark.py             # BenchmarkSuite
+│           ├── eval.py                  # AgentEvalSuite
+│           └── regression.py            # RegressionDetector
+├── tests/
+│   ├── unit/                            # Unit tests (tools, llm, middleware, memory, etc.)
+│   ├── integration/                     # Integration tests (25 test files)
+│   ├── e2e/                             # End-to-end tests
+│   ├── performance/                     # Performance/stress tests
+│   └── conftest.py                      # Shared pytest fixtures
 ├── docs/
 ├── pyproject.toml
+├── Makefile
 ├── README.md
 └── LICENSE
 ```
+
+**117 source files** | **145 test files** | **4 LLM providers** | **9 memory types** | **7 middleware** | **10 built-in tools**
 
 ## Core Concepts
 
@@ -273,7 +283,7 @@ project_root/
 The `Agent` is a thin shell. The `Runtime` handles all orchestration. The `AgentBuilder` provides a fluent API for construction.
 
 ```python
-from curio_agent_sdk import Agent, Runtime
+from curio_agent_sdk import Agent
 
 # Simple constructor
 agent = Agent(model="openai:gpt-4o", tools=[search])
@@ -337,8 +347,6 @@ agent = Agent(tools=browser.get_tools(), ...)
 Hooks let you customize agent behavior at every lifecycle point — without subclassing. Hooks are mutable: they can modify context, cancel actions, and inject data.
 
 ```python
-from curio_agent_sdk import HookRegistry
-
 # Block dangerous tool calls
 agent = Agent.builder() \
     .hook("tool.call.before", lambda ctx: ctx.cancel() if ctx.data["tool"] == "rm" else None) \
@@ -387,7 +395,7 @@ agent.add_instructions("From now on, prefer short answers.")
 Packaged, reusable agent capabilities — bundle prompts, tools, and hooks into named skills.
 
 ```python
-from curio_agent_sdk import Skill, SkillRegistry
+from curio_agent_sdk import Skill
 
 commit_skill = Skill(
     name="commit",
@@ -444,8 +452,6 @@ await agent.handoff(other_agent, "Continue this analysis")
 Plan-then-execute workflows with task tracking and approval gates.
 
 ```python
-from curio_agent_sdk import Agent
-
 agent = Agent.builder() \
     .model("openai:gpt-4o") \
     .tools([read_file, edit_file, run_tests]) \
@@ -456,7 +462,6 @@ agent = Agent.builder() \
 # design a plan, exit with plan for approval, then execute.
 # Todos are tracked as part of agent state and persisted in checkpoints.
 
-# Check plan status
 if agent.is_awaiting_plan_approval():
     plan = agent.get_plan()
     print(plan)
@@ -485,7 +490,7 @@ for paper in result.parsed_output:
 
 ### Memory System
 
-7 memory types with pluggable strategies for injection, saving, and querying.
+9 memory types with pluggable strategies for injection, saving, and querying.
 
 ```python
 from curio_agent_sdk import (
@@ -516,9 +521,7 @@ agent = Agent(
 memory = FileMemory(base_path="./memory", namespace="project-x")
 
 # Pluggable strategies
-from curio_agent_sdk.memory.manager import (
-    AdaptiveTokenQuery, SaveSummaryStrategy, UserMessageInjection,
-)
+from curio_agent_sdk.memory.manager import SaveSummaryStrategy
 manager = MemoryManager(
     memory=memory,
     injection_strategy=UserMessageInjection(),
@@ -526,6 +529,8 @@ manager = MemoryManager(
     query_strategy=AdaptiveTokenQuery(),
 )
 ```
+
+**Memory types:** ConversationMemory (sliding window), VectorMemory (semantic search), KeyValueMemory, CompositeMemory (combine backends), WorkingMemory (ephemeral scratchpad), EpisodicMemory (temporal), GraphMemory (entity-relationship), SelfEditingMemory (MemGPT-style), FileMemory (persistent files).
 
 ### Sessions / Conversations
 
@@ -576,7 +581,7 @@ async with agent:
 
 ### Connectors
 
-Pluggable connector framework for external services. Implement the `Connector` ABC and register tools are auto-discovered at startup.
+Pluggable connector framework for external services. Implement the `Connector` ABC and tools are auto-discovered at startup.
 
 ```python
 from curio_agent_sdk import Connector
@@ -721,7 +726,7 @@ class MyPlugin(Plugin):
 
 agent = Agent.builder() \
     .plugin(MyPlugin()) \
-    .discover_plugins()  # Auto-discover from installed packages
+    .discover_plugins() \
     .build()
 ```
 
@@ -756,7 +761,7 @@ from curio_agent_sdk import AgentCLI
 
 cli = AgentCLI(agent)
 cli.register_command("/deploy", deploy_handler)
-await cli.run_interactive()  # REPL with /help, /clear, /status, /sessions, /skills
+await cli.run_interactive()  # REPL with /help, /clear, /status, /sessions, /skills, /exit
 ```
 
 ### Testing
@@ -802,14 +807,15 @@ results = await eval_suite.run()
 
 ## Reliability & Production
 
-### Circuit Breakers
+### Circuit Breakers & Tiered Routing
 
 ```python
-from curio_agent_sdk import CircuitBreaker, TieredRouter, FallbackToLowerTier
+from curio_agent_sdk import TieredRouter, FallbackToLowerTier
 
 router = TieredRouter(
     tier1=["groq:llama-3.1-8b-instant"],
     tier2=["openai:gpt-4o"],
+    tier3=["anthropic:claude-sonnet-4-6"],
     degradation_strategy=FallbackToLowerTier(),
 )
 ```
@@ -817,22 +823,23 @@ router = TieredRouter(
 ### Request Deduplication
 
 ```python
+from curio_agent_sdk import LLMClient
+
 client = LLMClient(router=router, dedup_enabled=True, dedup_ttl=30.0)
 ```
 
 ### Credential Management
 
 ```python
-from curio_agent_sdk import VaultCredentialResolver, AWSSecretsResolver
+from curio_agent_sdk.credentials import VaultCredentialResolver, AWSSecretsResolver
 
-agent = Agent.builder() \
-    .credential_resolver(VaultCredentialResolver("https://vault:8200", token="...")) \
-    .build()
+vault = VaultCredentialResolver("https://vault:8200", token="...")
+aws = AWSSecretsResolver(region="us-east-1")
 ```
 
 ### Observability
 
-Hook-based observability consumers replace middleware for unified event-driven monitoring.
+Hook-based observability consumers for unified event-driven monitoring.
 
 ```python
 from curio_agent_sdk import TracingConsumer, LoggingConsumer, PersistenceConsumer, PrometheusExporter
@@ -844,6 +851,16 @@ agent = Agent.builder() \
     .build()
 ```
 
+### Persistence & Audit Logs
+
+```python
+from curio_agent_sdk.persistence import SQLitePersistence, PostgresPersistence, InMemoryPersistence
+from curio_agent_sdk.persistence import register_audit_hooks
+
+persistence = SQLitePersistence("./audit.db")
+register_audit_hooks(agent.hook_registry, persistence)
+```
+
 ## Tier System
 
 Three tiers for different task complexities with automatic failover:
@@ -852,16 +869,21 @@ Three tiers for different task complexities with automatic failover:
 |------|---------|----------------|
 | tier1 | Fast, simple tasks | gpt-4o-mini, llama-3.1-8b |
 | tier2 | Balanced quality/speed | gpt-4o, claude-sonnet-4-6 |
-| tier3 | High-quality output | gpt-4o, claude-sonnet-4-6 |
+| tier3 | High-quality output | claude-sonnet-4-6, gpt-4o |
 
-## Observability Dashboard
+## Running Tests
 
-A separate **[Curio Agent Observability](../curio_agent_observability/)** dashboard provides a web UI with:
-
-- Agent run history and event timeline
-- Cost tracking and per-model breakdowns
-- Tool analytics and performance metrics
-- Trace viewer for distributed agent runs
+```bash
+make test                # All tests (except live and slow)
+make test-unit           # Unit tests only
+make test-integration    # Integration tests
+make test-e2e            # End-to-end tests
+make test-perf           # Performance/stress tests
+make test-live           # Live API tests (requires API keys)
+make test-all            # Everything
+make test-cov            # With coverage report
+make test-fast           # Fast unit tests, stop on first failure
+```
 
 ## License
 
