@@ -26,7 +26,7 @@
 15. [Phase 11 — Workflow: Plan Mode & Structured Output](#15-phase-11--workflow-plan-mode--structured-output) ✅
 16. [Phase 12 — Persistence Layer](#16-phase-12--persistence-layer) ✅
 17. [Phase 13 — Built-in Tools](#17-phase-13--built-in-tools) ✅
-18. [Phase 14 — Context & Credentials](#18-phase-14--context--credentials)
+18. [Phase 14 — Context & Credentials](#18-phase-14--context--credentials) ✅
 19. [Phase 15 — CLI](#19-phase-15--cli)
 20. [Phase 16 — Testing Utilities (Meta-Tests)](#20-phase-16--testing-utilities-meta-tests) ✅
 21. [Phase 17 — Integration Tests](#21-phase-17--integration-tests)
@@ -1581,48 +1581,57 @@ Each implementation has specific tests:
 
 ---
 
-## 18. Phase 14 — Context & Credentials
+## 18. Phase 14 — Context & Credentials ✅
 
 **Priority:** Medium
-**Estimated tests:** ~25
+**Estimated tests:** ~25 → **Actual: 25 tests written, 25 passed (64% cov)**
+**Status:** ✅ COMPLETED
 
 ### 18.1 `core/context/context.py` — ContextManager
 
-**File:** `tests/unit/context/test_context_manager.py`
+**File:** `tests/unit/context/test_context_manager.py` — **11 tests, all passing**
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_count_tokens_basic` | Basic token counting |
-| 2 | `test_fit_messages_under_limit` | All messages fit |
-| 3 | `test_fit_messages_truncate` | Truncate oldest strategy |
-| 4 | `test_fit_messages_summarize` | Summarize strategy |
-| 5 | `test_reserve_tokens` | Reserve tokens for response |
-| 6 | `test_empty_messages` | Handle empty message list |
-| 7 | `test_system_message_preserved` | System message never truncated |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_count_tokens_basic` | Basic token counting | ✅ |
+| 2 | `test_fit_messages_under_limit` | All messages fit | ✅ |
+| 3 | `test_fit_messages_truncate` | Truncate oldest strategy | ✅ |
+| 4 | `test_fit_messages_summarize` | Summarize strategy | ✅ |
+| 5 | `test_reserve_tokens` | Reserve tokens for response | ✅ |
+| 6 | `test_empty_messages` | Handle empty message list | ✅ |
+| 7 | `test_system_message_preserved` | System message never truncated | ✅ |
+| 8 | `test_fit_messages_with_tools` | fit_messages with tools param | ✅ |
+| 9 | `test_summarizer_callback_invoked` | Summarizer callback used when provided | ✅ |
+| 10 | `test_summarizer_exception_uses_placeholder` | Summarizer exception → placeholder | ✅ |
+| 11 | `test_truncate_preserves_tool_call_result_pairs` | Tool call/result pairs kept together | ✅ |
 
 ### 18.2 `core/context/instructions.py` — InstructionLoader
 
-**File:** `tests/unit/context/test_instruction_loader.py`
+**File:** `tests/unit/context/test_instruction_loader.py` — **6 tests, all passing**
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_load_from_string` | Load instructions from string |
-| 2 | `test_load_from_file` | Load instructions from file |
-| 3 | `test_load_file_not_found` | Handle missing file |
-| 4 | `test_template_variables` | Variable substitution |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_load_from_string` | Load instructions from string | ✅ |
+| 2 | `test_load_from_file` | Load instructions from file | ✅ |
+| 3 | `test_load_file_not_found` | Handle missing file | ✅ |
+| 4 | `test_template_variables` | Variable substitution | ✅ |
+| 5 | `test_loader_repr` | InstructionLoader __repr__ | ✅ |
+| 6 | `test_duplicate_content_deduped` | Duplicate content only included once | ✅ |
 
 ### 18.3 `credentials/credentials.py` — CredentialResolver
 
-**File:** `tests/unit/credentials/test_credentials.py`
+**File:** `tests/unit/credentials/test_credentials.py` — **8 tests, all passing**
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_env_resolver_found` | Resolve from env var |
-| 2 | `test_env_resolver_not_found` | Returns None |
-| 3 | `test_env_resolver_with_prefix` | Prefix prepended |
-| 4 | `test_env_resolver_optional_default` | `resolve_optional()` with default |
-| 5 | `test_vault_resolver_creation` | VaultCredentialResolver init |
-| 6 | `test_aws_resolver_creation` | AWSSecretsResolver init |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_env_resolver_found` | Resolve from env var | ✅ |
+| 2 | `test_env_resolver_not_found` | Returns None | ✅ |
+| 3 | `test_env_resolver_with_prefix` | Prefix prepended | ✅ |
+| 4 | `test_env_resolver_optional_default` | `resolve_optional()` with default | ✅ |
+| 5 | `test_vault_resolver_creation` | VaultCredentialResolver init | ✅ |
+| 6 | `test_aws_resolver_creation` | AWSSecretsResolver init | ✅ |
+| 7 | `test_resolve_credential_mapping_exact_and_partial` | $VAR / ${VAR} / partial substitution | ✅ |
+| 8 | `test_resolve_credentials_with_env` | resolve_credentials_with_env helper | ✅ |
 
 ---
 
@@ -2259,7 +2268,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 11 | Plan Mode & Structured Output | ✅ 30 (78% cov) | Medium |
 | 12 | Persistence Layer | ✅ 27 (85% cov) | Medium |
 | 13 | Built-in Tools | ✅ 21 (83% cov) | Medium |
-| 14 | Context & Credentials | ~25 | Medium |
+| 14 | Context & Credentials | ✅ 25 (64% cov) | Medium |
 | 15 | CLI | ~10 | Low |
 | 16 | Testing Utilities (Meta) | ✅ 55 (72% cov) | High |
 | 17 | Integration Tests | ~60 | High |
