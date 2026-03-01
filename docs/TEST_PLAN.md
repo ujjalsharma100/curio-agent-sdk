@@ -22,7 +22,7 @@
 11. [Phase 7 — Events, Hooks & Middleware](#11-phase-7--events-hooks--middleware) ✅
 12. [Phase 8 — Security & Permissions](#12-phase-8--security--permissions) ✅
 13. [Phase 9 — Extensions: Skills, Subagents & Plugins](#13-phase-9--extensions-skills-subagents--plugins) ✅
-14. [Phase 10 — MCP & Connectors](#14-phase-10--mcp--connectors)
+14. [Phase 10 — MCP & Connectors](#14-phase-10--mcp--connectors) ✅
 15. [Phase 11 — Workflow: Plan Mode & Structured Output](#15-phase-11--workflow-plan-mode--structured-output)
 16. [Phase 12 — Persistence Layer](#16-phase-12--persistence-layer)
 17. [Phase 13 — Built-in Tools](#17-phase-13--built-in-tools)
@@ -1283,77 +1283,120 @@ Each implementation has specific tests:
 
 ---
 
-## 14. Phase 10 — MCP & Connectors
+## 14. Phase 10 — MCP & Connectors ✅
 
 **Priority:** Medium
-**Estimated tests:** ~35
+**Estimated tests:** ~35 → **Actual: 83 tests written, 83 passed, 78% coverage (mcp + connectors)**
+**Status:** ✅ COMPLETED
 
 ### 14.1 MCP Module
 
-**File:** `tests/unit/mcp/test_mcp_client.py`
+**File:** `tests/unit/mcp/test_mcp_client.py` — **27 tests, all passing**
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_mcp_client_creation` | Constructor with URL |
-| 2 | `test_mcp_client_connect` | Connect (mocked transport) |
-| 3 | `test_mcp_client_disconnect` | Disconnect |
-| 4 | `test_mcp_client_list_tools` | List tools from server |
-| 5 | `test_mcp_client_call_tool` | Call tool on server |
-| 6 | `test_mcp_client_list_resources` | List resources |
-| 7 | `test_mcp_client_read_resource` | Read resource |
-| 8 | `test_mcp_client_list_prompts` | List prompts |
-| 9 | `test_mcp_client_get_prompt` | Get prompt |
-| 10 | `test_mcp_client_timeout` | Connection timeout handling |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_mcp_client_creation_with_url` | Constructor with URL | ✅ |
+| 2 | `test_mcp_client_creation_with_stdio_url` | Stdio URL accepted | ✅ |
+| 3 | `test_mcp_client_creation_requires_url_or_config` | ValueError if neither url nor config | ✅ |
+| 4 | `test_mcp_client_creation_with_config` | Constructor with config dict | ✅ |
+| 5 | `test_mcp_client_connect` | Connect (mocked transport) | ✅ |
+| 6 | `test_mcp_client_disconnect` | Disconnect | ✅ |
+| 7 | `test_mcp_client_list_tools` | List tools from server | ✅ |
+| 8 | `test_mcp_client_list_tools_with_cursor` | Pagination cursor | ✅ |
+| 9 | `test_mcp_client_list_all_tools` | list_all_tools pagination | ✅ |
+| 10 | `test_mcp_client_call_tool` | Call tool, flattened text content | ✅ |
+| 11 | `test_mcp_client_call_tool_structured_content` | structuredContent returned | ✅ |
+| 12 | `test_mcp_client_call_tool_error_raises` | isError → ToolExecutionError | ✅ |
+| 13 | `test_mcp_client_list_resources` | List resources | ✅ |
+| 14 | `test_mcp_client_list_resources_not_supported` | Graceful fallback when not supported | ✅ |
+| 15 | `test_mcp_client_read_resource` | Read resource by URI | ✅ |
+| 16 | `test_mcp_client_list_prompts` | List prompts | ✅ |
+| 17 | `test_mcp_client_list_prompts_not_supported` | Graceful fallback | ✅ |
+| 18 | `test_mcp_client_get_prompt` | Get prompt with arguments | ✅ |
+| 19–21 | MCPTool, MCPResource, MCPPrompt dataclasses | Dataclass fields | ✅ |
 
-**File:** `tests/unit/mcp/test_mcp_config.py`
+**File:** `tests/unit/mcp/test_mcp_config.py` — **14 tests, all passing**
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_config_creation` | MCPServerConfig |
-| 2 | `test_config_env_resolution` | Environment variable resolution |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_config_creation_stdio` | MCPServerConfig stdio | ✅ |
+| 2 | `test_config_creation_http` | MCPServerConfig HTTP | ✅ |
+| 3 | `test_config_from_dict_*` | from_dict stdio/http/disabled/name | ✅ |
+| 4 | `test_resolve_env_*` | resolve_env_in_config ($VAR, ${VAR}, headers) | ✅ |
+| 5 | `test_load_file_*` | load_mcp_servers_from_file (missing, dict, list, disabled) | ✅ |
 
-**File:** `tests/unit/mcp/test_mcp_adapter.py`
+**File:** `tests/unit/mcp/test_mcp_adapter.py` — **6 tests, all passing**
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_tool_from_mcp` | Convert single MCPTool → Tool |
-| 2 | `test_tools_from_mcp` | Convert list of MCPTools |
-| 3 | `test_adapter_schema_mapping` | Schema correctly mapped |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_tool_from_mcp` | Convert single MCPTool → Tool | ✅ |
+| 2 | `test_tool_from_mcp_execute` | execute calls client.call_tool | ✅ |
+| 3 | `test_tool_from_mcp_name_override` | name_override | ✅ |
+| 4 | `test_tools_from_mcp` | adapt_all list | ✅ |
+| 5 | `test_tools_from_mcp_with_prefix` | name_prefix | ✅ |
+| 6 | `test_adapter_schema_mapping` | Schema properties/required mapped | ✅ |
 
-**File:** `tests/unit/mcp/test_mcp_bridge.py`
+**File:** `tests/unit/mcp/test_mcp_bridge.py` — **9 tests, all passing**
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_bridge_startup` | Connects to MCP server |
-| 2 | `test_bridge_shutdown` | Disconnects |
-| 3 | `test_bridge_get_tools` | Returns adapted tools |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_describe_spec_*` | _describe_spec string/config/dict | ✅ |
+| 2 | `test_bridge_startup` | Connects to MCP server, registers tools | ✅ |
+| 3 | `test_bridge_shutdown` | Disconnects all clients | ✅ |
+| 4 | `test_bridge_get_tools_via_registry` | Tools in registry after startup | ✅ |
+| 5 | `test_bridge_health_check` | True when no CB open | ✅ |
+| 6 | `test_bridge_get_resource_context` | Reads URIs, concatenates | ✅ |
+| 7 | `test_bridge_get_resource_context_uris_param` | uris param overrides instance | ✅ |
 
-**File:** `tests/unit/mcp/test_mcp_transport.py`
+**File:** `tests/unit/mcp/test_mcp_transport.py` — **17 tests, all passing**
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_stdio_transport` | Stdio transport |
-| 2 | `test_http_transport` | HTTP transport |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_mcp_error_*` | MCPError message/code/data | ✅ |
+| 2 | `test_transport_for_url_*` | stdio, http, https, unsupported | ✅ |
+| 3 | `test_transport_from_config_*` | stdio, http, neither raises | ✅ |
+| 4 | `test_stdio_transport_*` | From URL, invalid URL, command/args, command required | ✅ |
+| 5 | `test_http_transport_*` | connect, disconnect, request not connected, strips trailing slash | ✅ |
 
 ### 14.2 Connectors
 
-**File:** `tests/unit/connectors/test_connector.py`
+**File:** `tests/unit/connectors/test_connector.py` — **9 tests, all passing**
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_connector_is_abstract` | Cannot instantiate |
-| 2 | `test_connector_concrete_impl` | Concrete connector works |
-| 3 | `test_connector_connect_disconnect` | Lifecycle |
-| 4 | `test_connector_get_tools` | Returns tools |
-| 5 | `test_connector_health_check` | Health check default |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_connector_is_abstract` | Cannot instantiate Connector | ✅ |
+| 2 | `test_connector_concrete_impl` | Concrete connector works | ✅ |
+| 3 | `test_connector_connect_disconnect` | Lifecycle | ✅ |
+| 4 | `test_connector_get_tools` | Returns tools | ✅ |
+| 5 | `test_connector_health_check` | Health check default True | ✅ |
+| 6 | `test_connector_get_resources_default` | get_resources empty by default | ✅ |
+| 7 | `test_connector_resource` | ConnectorResource uri/content/mime_type | ✅ |
+| 8 | `test_resolve_credentials_*` | resolve_credentials no refs, env ref | ✅ |
 
-**File:** `tests/unit/connectors/test_connector_bridge.py`
+**File:** `tests/unit/connectors/test_connector_bridge.py` — **6 tests, all passing**
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_bridge_startup` | Connects all connectors |
-| 2 | `test_bridge_shutdown` | Disconnects all |
-| 3 | `test_bridge_get_tools` | Aggregates tools from all connectors |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_bridge_startup` | Connects all connectors, registers tools | ✅ |
+| 2 | `test_bridge_shutdown` | Disconnects all | ✅ |
+| 3 | `test_bridge_get_tools` | Tools from all connectors in registry | ✅ |
+| 4 | `test_bridge_health_check` | True when all healthy | ✅ |
+| 5 | `test_bridge_get_resource_context` | Aggregates connector resources | ✅ |
+| 6 | `test_bridge_get_circuit_breaker` | get_circuit_breaker by name | ✅ |
+
+**Coverage breakdown (Phase 10):**
+| Module | Stmts | Miss | Cover |
+|--------|-------|------|-------|
+| `mcp/__init__.py` | 5 | 0 | 100% |
+| `mcp/client.py` | 136 | 11 | 92% |
+| `mcp/config.py` | 73 | 4 | 95% |
+| `mcp/adapter.py` | 18 | 0 | 100% |
+| `mcp/bridge.py` | 84 | 15 | 82% |
+| `mcp/transport.py` | 158 | 83 | 47% |
+| `connectors/__init__.py` | 3 | 0 | 100% |
+| `connectors/base.py` | 24 | 0 | 100% |
+| `connectors/bridge.py` | 79 | 17 | 78% |
+| **TOTAL (mcp + connectors)** | **580** | **130** | **78%** |
 
 ---
 
@@ -2169,7 +2212,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 7 | Events, Hooks, Middleware | ✅ 73 (54% cov) | High |
 | 8 | Security & Permissions | ✅ 44 (82% cov) | High |
 | 9 | Extensions (Skills, Subagents, Plugins) | ✅ 89 (94% cov) | Medium |
-| 10 | MCP & Connectors | ~35 | Medium |
+| 10 | MCP & Connectors | ✅ 83 (78% cov) | Medium |
 | 11 | Plan Mode & Structured Output | ~30 | Medium |
 | 12 | Persistence Layer | ~30 | Medium |
 | 13 | Built-in Tools | ~25 | Medium |
