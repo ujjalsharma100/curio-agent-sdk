@@ -298,10 +298,7 @@ class Agent:
             self.loop = ToolCallingLoop(tier=tier, temperature=temperature, max_tokens=max_tokens)
 
         # Wire LLM and executor into the loop
-        if hasattr(self.loop, 'llm') and self.loop.llm is None:
-            self.loop.llm = self.llm
-        if hasattr(self.loop, 'tool_executor') and self.loop.tool_executor is None:
-            self.loop.tool_executor = self.executor
+        self._wire_loop()
 
         # ── Store references for direct access ──────────────────────
         self.memory_manager_instance = memory_manager
@@ -366,6 +363,17 @@ class Agent:
         # Expose the resolved memory_manager from runtime
         if self.runtime.memory_manager is not None:
             self.memory_manager_instance = self.runtime.memory_manager
+
+    def _wire_loop(self) -> None:
+        """Re-wire LLM and executor into the loop and runtime (e.g. after injecting a mock LLM)."""
+        if hasattr(self.loop, "llm"):
+            self.loop.llm = self.llm
+        if hasattr(self.loop, "tool_executor"):
+            self.loop.tool_executor = self.executor
+        if getattr(self, "runtime", None) is not None:
+            self.runtime.llm = self.llm
+            if hasattr(self.runtime, "tool_executor"):
+                self.runtime.tool_executor = self.executor
 
     # ── Builder pattern ─────────────────────────────────────────────
 

@@ -2,7 +2,7 @@
 
 > **Version:** 1.0
 > **SDK Version:** 0.6.0
-> **Last Updated:** 2026-02-28
+> **Last Updated:** 2026-03-01
 > **Status:** Draft
 
 ---
@@ -28,7 +28,7 @@
 17. [Phase 13 — Built-in Tools](#17-phase-13--built-in-tools)
 18. [Phase 14 — Context & Credentials](#18-phase-14--context--credentials)
 19. [Phase 15 — CLI](#19-phase-15--cli)
-20. [Phase 16 — Testing Utilities (Meta-Tests)](#20-phase-16--testing-utilities-meta-tests)
+20. [Phase 16 — Testing Utilities (Meta-Tests)](#20-phase-16--testing-utilities-meta-tests) ✅
 21. [Phase 17 — Integration Tests](#21-phase-17--integration-tests)
 22. [Phase 18 — End-to-End / Example Tests](#22-phase-18--end-to-end--example-tests)
 23. [Phase 19 — Performance & Stress Tests](#23-phase-19--performance--stress-tests)
@@ -1421,76 +1421,83 @@ Each implementation has specific tests:
 
 ---
 
-## 20. Phase 16 — Testing Utilities (Meta-Tests)
+## 20. Phase 16 — Testing Utilities (Meta-Tests) ✅
 
 **Priority:** High (these utilities are used throughout)
-**Estimated tests:** ~50
+**Estimated tests:** ~50 → **Actual: 55 tests written, 55 passed (72% cov)**
+**Status:** ✅ COMPLETED
 
-### 20.1 MockLLM
+### 20.1 MockLLM ✅
 
-**File:** `tests/unit/testing/test_mock_llm.py`
+**File:** `tests/unit/testing/test_mock_llm.py` — **13 tests, all passing**
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_mock_llm_creation` | Empty MockLLM |
-| 2 | `test_add_text_response` | Add and retrieve text response |
-| 3 | `test_add_tool_call_response` | Add tool call response |
-| 4 | `test_add_multiple_responses` | Queue multiple responses |
-| 5 | `test_response_ordering` | FIFO ordering |
-| 6 | `test_call_count` | Call count tracking |
-| 7 | `test_calls_history` | Request history |
-| 8 | `test_text_response_helper` | `text_response()` function |
-| 9 | `test_tool_call_response_helper` | `tool_call_response()` function |
-| 10 | `test_exhausted_responses` | Error when no more responses |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_mock_llm_creation` | Empty MockLLM | ✅ |
+| 2 | `test_add_text_response` | Add and retrieve text response | ✅ |
+| 3 | `test_add_tool_call_response` | Add tool call response | ✅ |
+| 4 | `test_add_multiple_responses` | Queue multiple responses | ✅ |
+| 5 | `test_response_ordering` | FIFO ordering | ✅ |
+| 6 | `test_call_count` | Call count tracking | ✅ |
+| 7 | `test_calls_history` | Request history | ✅ |
+| 8 | `test_text_response_helper` | `text_response()` function | ✅ |
+| 9 | `test_tool_call_response_helper` | `tool_call_response()` function | ✅ |
+| 10 | `test_exhausted_responses` | Default response when queue empty | ✅ |
+| 11 | `test_mock_llm_stream` | stream() yields text_delta then done | ✅ |
+| 12 | `test_mock_llm_request_messages` | request_messages from recorded calls | ✅ |
+| 13 | `test_add_tool_call_response_with_tool_call_list` | add_tool_call_response with list of ToolCall | ✅ |
 
-### 20.2 AgentTestHarness
+### 20.2 AgentTestHarness ✅
 
-**File:** `tests/unit/testing/test_harness.py`
+**File:** `tests/unit/testing/test_harness.py` — **7 tests, all passing**
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_harness_creation` | Create with agent |
-| 2 | `test_harness_run_sync` | Synchronous run |
-| 3 | `test_harness_arun` | Async run |
-| 4 | `test_harness_tool_calls` | Track tool calls made |
-| 5 | `test_harness_messages` | Track all messages |
-| 6 | `test_harness_with_mock_llm` | Use provided MockLLM |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_harness_creation` | Create with agent | ✅ |
+| 2 | `test_harness_run_sync` | Synchronous run | ✅ |
+| 3 | `test_harness_arun` | Async run | ✅ |
+| 4 | `test_harness_tool_calls` | Track tool calls made | ✅ |
+| 5 | `test_harness_messages` | Track all messages | ✅ |
+| 6 | `test_harness_with_mock_llm` | Use provided MockLLM | ✅ |
+| 7 | `test_harness_set_llm` | set_llm replaces LLM | ✅ |
 
-### 20.3 ToolTestKit
+### 20.3 ToolTestKit ✅
 
-**File:** `tests/unit/testing/test_toolkit.py`
+**File:** `tests/unit/testing/test_toolkit.py` — **9 tests, all passing**
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_toolkit_creation` | ToolTestKit init |
-| 2 | `test_toolkit_test_tool` | Test tool execution |
-| 3 | `test_toolkit_validate_schema` | Validate tool schema |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_toolkit_creation` | ToolTestKit init | ✅ |
+| 2 | `test_toolkit_test_tool` | Test tool execution | ✅ |
+| 3 | `test_toolkit_validate_schema` | Validate tool schema | ✅ |
+| 4–9 | assert_tool_called, assert_tool_not_called, assert_call_order, assert_call_count, get_calls, clear_mocks/clear_calls | Assertions and cleanup | ✅ |
 
-### 20.4 Record/Replay
+### 20.4 Record/Replay ✅
 
-**File:** `tests/unit/testing/test_replay.py`
+**File:** `tests/unit/testing/test_replay.py` — **6 tests, all passing**
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_recording_middleware` | Records LLM calls |
-| 2 | `test_recording_save` | Save to file |
-| 3 | `test_replay_client_from_file` | Load recording |
-| 4 | `test_replay_client_call` | Replay matches recording |
-| 5 | `test_roundtrip` | Record → save → load → replay |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_recording_middleware` | Records LLM calls | ✅ |
+| 2 | `test_recording_save` | Save to file | ✅ |
+| 3 | `test_replay_client_from_file` | Load recording | ✅ |
+| 4 | `test_replay_client_call` | Replay matches recording | ✅ |
+| 5 | `test_roundtrip` | Record → save → load → replay | ✅ |
+| 6 | `test_recording_recorded_output` | recorded_output property | ✅ |
 
-### 20.5 Other Testing Utilities
+### 20.5 Other Testing Utilities ✅
 
-**Files:** `tests/unit/testing/test_*.py` (snapshot, benchmark, eval, regression, coverage)
+**Files:** `tests/unit/testing/test_snapshot.py`, `test_benchmark.py`, `test_eval.py`, `test_regression.py`, `test_coverage.py`, `test_multi_agent_harness.py`
 
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | `test_snapshot_tester` | Snapshot comparison |
-| 2 | `test_benchmark_suite` | Benchmark execution |
-| 3 | `test_eval_suite` | Eval suite run |
-| 4 | `test_eval_metrics` | exact_match, contains_match, etc. |
-| 5 | `test_regression_detector` | Regression detection |
-| 6 | `test_coverage_tracker` | Coverage tracking |
-| 7 | `test_multi_agent_harness` | MultiAgentTestHarness |
+| # | Test | Validates | Status |
+|---|------|-----------|--------|
+| 1 | `test_snapshot_tester` | Snapshot comparison | ✅ |
+| 2 | `test_snapshot_tester_update_mode`, `test_snapshot_tester_dict_and_str_payload` | Update mode, dict/str payload | ✅ |
+| 3 | `test_benchmark_suite`, `test_benchmark_result_to_dict`, `test_benchmark_print_report` | Benchmark execution and report | ✅ |
+| 4 | `test_eval_suite`, `test_eval_suite_result`, `test_eval_case_to_dict_from_dict`, `test_eval_dataset_filter_by_tag` | Eval suite and dataset | ✅ |
+| 5 | `test_regression_detector`, `test_regression_detector_save_load`, `test_regression_report_str_and_to_dict`, `test_regression_passed_when_no_regression` | Regression detection | ✅ |
+| 6 | `test_coverage_tracker`, `test_coverage_tracker_error_paths`, `test_merge_coverage_reports`, `test_coverage_tracker_print_report`, `test_merge_coverage_reports_empty` | Coverage tracking | ✅ |
+| 7 | `test_multi_agent_harness` | MultiAgentTestHarness | ✅ |
 
 ---
 
@@ -2032,7 +2039,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 13 | Built-in Tools | ~25 | Medium |
 | 14 | Context & Credentials | ~25 | Medium |
 | 15 | CLI | ~10 | Low |
-| 16 | Testing Utilities (Meta) | ~50 | High |
+| 16 | Testing Utilities (Meta) | ✅ 55 (72% cov) | High |
 | 17 | Integration Tests | ~60 | High |
 | 18 | E2E / Example Tests | ~25 | Medium |
 | 19 | Performance Tests | ~12 | Low |
