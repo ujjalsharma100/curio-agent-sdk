@@ -61,6 +61,16 @@ Documentation = "https://github.com/ujjalsharma100/curio-agent-sdk#readme"
 Repository = "https://github.com/ujjalsharma100/curio-agent-sdk.git"
 Issues = "https://github.com/ujjalsharma100/curio-agent-sdk/issues"
 
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "e2e: End-to-end tests",
+    "slow: Performance/stress tests (may take > 10s)",
+    "live: Tests requiring real API keys",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["curio_agent_sdk*"]
