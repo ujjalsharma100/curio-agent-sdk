@@ -23,7 +23,7 @@
 12. [Phase 8 — Security & Permissions](#12-phase-8--security--permissions) ✅
 13. [Phase 9 — Extensions: Skills, Subagents & Plugins](#13-phase-9--extensions-skills-subagents--plugins) ✅
 14. [Phase 10 — MCP & Connectors](#14-phase-10--mcp--connectors) ✅
-15. [Phase 11 — Workflow: Plan Mode & Structured Output](#15-phase-11--workflow-plan-mode--structured-output)
+15. [Phase 11 — Workflow: Plan Mode & Structured Output](#15-phase-11--workflow-plan-mode--structured-output) ✅
 16. [Phase 12 — Persistence Layer](#16-phase-12--persistence-layer)
 17. [Phase 13 — Built-in Tools](#17-phase-13--built-in-tools)
 18. [Phase 14 — Context & Credentials](#18-phase-14--context--credentials)
@@ -1400,44 +1400,53 @@ Each implementation has specific tests:
 
 ---
 
-## 15. Phase 11 — Workflow: Plan Mode & Structured Output
+## 15. Phase 11 — Workflow: Plan Mode & Structured Output ✅
 
 **Priority:** Medium
 **Estimated tests:** ~30
+**Status:** Completed (30 tests implemented)
 
 ### 15.1 `core/workflow/plan_mode.py`
 
 **File:** `tests/unit/workflow/test_plan_mode.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_plan_step_creation` | PlanStep dataclass |
-| 2 | `test_plan_creation` | Plan with steps |
-| 3 | `test_plan_state_creation` | PlanState extension |
-| 4 | `test_plan_mode_enter_planning` | Enter planning phase |
-| 5 | `test_plan_mode_exit_planning` | Exit returns Plan |
-| 6 | `test_plan_mode_execute_plan` | Execute plan steps |
-| 7 | `test_plan_mode_read_only_tools` | Read-only tools during planning |
-| 8 | `test_todo_manager_create` | Create todo item |
-| 9 | `test_todo_manager_get` | Get todo by ID |
-| 10 | `test_todo_manager_update_status` | Update status |
-| 11 | `test_todo_manager_list` | List todos |
-| 12 | `test_todo_manager_list_by_status` | Filter by status |
-| 13 | `test_todo_status_transitions` | pending → in_progress → completed |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_plan_step_creation` | PlanStep dataclass | ✅ |
+| 2 | `test_plan_creation` | Plan with steps | ✅ |
+| 3 | `test_plan_state_creation` | PlanState extension | ✅ |
+| 4 | `test_plan_mode_enter_planning` | Enter planning phase | ✅ |
+| 5 | `test_plan_mode_exit_returns_plan` | Exit returns Plan | ✅ |
+| 6 | `test_plan_mode_execute_plan` | Execute plan steps | ✅ |
+| 7 | `test_plan_mode_read_only_tools` | Read-only tools during planning | ✅ |
+| 8 | `test_todo_manager_create` | Create todo item | ✅ |
+| 9 | `test_todo_manager_get` | Get todo by ID | ✅ |
+| 10 | `test_todo_manager_update_status` | Update status | ✅ |
+| 11 | `test_todo_manager_list` | List todos | ✅ |
+| 12 | `test_todo_manager_list_by_status` | Filter by status | ✅ |
+| 13 | `test_todo_status_transitions` | pending → in_progress → completed | ✅ |
 
 ### 15.2 `core/workflow/structured_output.py`
 
 **File:** `tests/unit/workflow/test_structured_output.py`
 
-| # | Test Case | What It Validates |
-|---|-----------|-------------------|
-| 1 | `test_schema_from_pydantic_model` | Convert Pydantic model to JSON schema |
-| 2 | `test_schema_from_dict` | Pass through dict schema |
-| 3 | `test_parse_structured_simple` | Parse JSON into Pydantic model |
-| 4 | `test_parse_structured_nested` | Nested model parsing |
-| 5 | `test_parse_structured_list` | Parse list of models |
-| 6 | `test_parse_structured_invalid` | Invalid JSON handling |
-| 7 | `test_parse_structured_missing_fields` | Missing required fields |
+| # | Test Case | What It Validates | Status |
+|---|-----------|-------------------|--------|
+| 1 | `test_schema_from_pydantic_model` | Convert Pydantic model to JSON schema | ✅ |
+| 2 | `test_schema_from_dict` | Pass through dict schema | ✅ |
+| 3 | `test_parse_structured_simple` | Parse JSON into Pydantic model | ✅ |
+| 4 | `test_parse_structured_nested` | Nested model parsing | ✅ |
+| 5 | `test_parse_structured_list` | Parse list of models | ✅ |
+| 6 | `test_parse_structured_invalid` | Invalid JSON handling | ✅ |
+| 7 | `test_parse_structured_missing_fields` | Missing required fields | ✅ |
+
+**Coverage breakdown (Phase 11):**
+| Module | Stmts | Miss | Cover |
+|--------|-------|------|-------|
+| `core/workflow/__init__.py` | 4 | 0 | 100% |
+| `core/workflow/plan_mode.py` | 234 | 49 | 79% |
+| `core/workflow/structured_output.py` | 65 | 18 | 72% |
+| **TOTAL (plan_mode + structured_output)** | **303** | **67** | **78%** |
 
 ---
 
@@ -2213,7 +2222,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 8 | Security & Permissions | ✅ 44 (82% cov) | High |
 | 9 | Extensions (Skills, Subagents, Plugins) | ✅ 89 (94% cov) | Medium |
 | 10 | MCP & Connectors | ✅ 83 (78% cov) | Medium |
-| 11 | Plan Mode & Structured Output | ~30 | Medium |
+| 11 | Plan Mode & Structured Output | ✅ 30 (78% cov) | Medium |
 | 12 | Persistence Layer | ~30 | Medium |
 | 13 | Built-in Tools | ~25 | Medium |
 | 14 | Context & Credentials | ~25 | Medium |
