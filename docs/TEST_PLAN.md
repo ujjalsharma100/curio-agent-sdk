@@ -24,7 +24,7 @@
 13. [Phase 9 — Extensions: Skills, Subagents & Plugins](#13-phase-9--extensions-skills-subagents--plugins) ✅
 14. [Phase 10 — MCP & Connectors](#14-phase-10--mcp--connectors) ✅
 15. [Phase 11 — Workflow: Plan Mode & Structured Output](#15-phase-11--workflow-plan-mode--structured-output) ✅
-16. [Phase 12 — Persistence Layer](#16-phase-12--persistence-layer)
+16. [Phase 12 — Persistence Layer](#16-phase-12--persistence-layer) ✅
 17. [Phase 13 — Built-in Tools](#17-phase-13--built-in-tools)
 18. [Phase 14 — Context & Credentials](#18-phase-14--context--credentials)
 19. [Phase 15 — CLI](#19-phase-15--cli)
@@ -1450,10 +1450,11 @@ Each implementation has specific tests:
 
 ---
 
-## 16. Phase 12 — Persistence Layer
+## 16. Phase 12 — Persistence Layer ✅
 
-**Priority:** Medium
-**Estimated tests:** ~30
+**Priority:** Medium  
+**Status:** Completed  
+**Tests:** 27 (base: 2, sqlite: 16, memory: 9)
 
 ### 16.1 `persistence/base.py` — BasePersistence ABC
 
@@ -1472,15 +1473,19 @@ Each implementation has specific tests:
 |---|-----------|-------------------|
 | 1 | `test_sqlite_init_schema` | Schema created on init |
 | 2 | `test_sqlite_save_run` | Save AgentRun |
-| 3 | `test_sqlite_get_run` | Retrieve AgentRun |
-| 4 | `test_sqlite_get_run_not_found` | Returns None for unknown |
-| 5 | `test_sqlite_list_runs` | List runs by agent_id |
-| 6 | `test_sqlite_save_event` | Save AgentRunEvent |
-| 7 | `test_sqlite_get_events` | Retrieve events for run |
-| 8 | `test_sqlite_save_llm_usage` | Save LLM usage data |
-| 9 | `test_sqlite_get_llm_usage` | Retrieve LLM usage |
-| 10 | `test_sqlite_close` | Connection closed properly |
-| 11 | `test_sqlite_concurrent_access` | Thread safety |
+| 3 | `test_sqlite_get_run_not_found` | Returns None for unknown |
+| 4 | `test_sqlite_list_runs` | List runs by agent_id |
+| 5 | `test_sqlite_update_run` | Update existing run |
+| 6 | `test_sqlite_delete_run` | Delete run, returns True/False |
+| 7 | `test_sqlite_save_event` | Save AgentRunEvent |
+| 8 | `test_sqlite_get_events_filter_by_type` | Get events, filter by event_type |
+| 9 | `test_sqlite_save_llm_usage` | Save LLM usage data |
+| 10 | `test_sqlite_get_llm_usage` | Retrieve LLM usage with filters |
+| 11 | `test_sqlite_close` | Connection closed properly |
+| 12 | `test_sqlite_health_check` | health_check returns True |
+| 13 | `test_sqlite_concurrent_access` | Multiple operations (thread safety) |
+| 14 | `test_sqlite_get_agent_run_stats` | Aggregate run/LLM stats |
+| 15 | `test_sqlite_audit_log` | log_audit_event, get_audit_events |
 
 ### 16.3 `persistence/memory.py` — InMemoryPersistence
 
@@ -1489,9 +1494,27 @@ Each implementation has specific tests:
 | # | Test Case | What It Validates |
 |---|-----------|-------------------|
 | 1 | `test_inmemory_save_get_run` | Save and retrieve |
-| 2 | `test_inmemory_list_runs` | List runs |
+| 2 | `test_inmemory_list_runs` | List runs with pagination |
 | 3 | `test_inmemory_save_events` | Save and get events |
 | 4 | `test_inmemory_save_usage` | Save and get usage |
+| 5 | `test_inmemory_update_run` | Update existing run |
+| 6 | `test_inmemory_delete_run` | Delete run |
+| 7 | `test_inmemory_get_agent_run_stats` | Aggregate stats |
+| 8 | `test_inmemory_clear_all` | clear_all wipes data |
+| 9 | `test_inmemory_get_all_data` | get_all_data for debugging |
+| 10 | `test_inmemory_audit_events` | log_audit_event, get_audit_events |
+
+**Coverage breakdown (Phase 12 — base, sqlite, memory, \_\_init\_\_):**
+
+| Module | Stmts | Miss | Cover |
+|--------|-------|------|-------|
+| `persistence/__init__.py` | 6 | 0 | 100% |
+| `persistence/base.py` | 63 | 21 | 67% |
+| `persistence/sqlite.py` | 256 | 32 | 88% |
+| `persistence/memory.py` | 149 | 20 | 87% |
+| **TOTAL (Phase 12 scope)** | **474** | **73** | **85%** |
+
+*Note: `postgres.py` is omitted from coverage per plan; `audit_hooks.py` is out of scope for this phase.*
 
 ---
 
@@ -2223,7 +2246,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 9 | Extensions (Skills, Subagents, Plugins) | ✅ 89 (94% cov) | Medium |
 | 10 | MCP & Connectors | ✅ 83 (78% cov) | Medium |
 | 11 | Plan Mode & Structured Output | ✅ 30 (78% cov) | Medium |
-| 12 | Persistence Layer | ~30 | Medium |
+| 12 | Persistence Layer | ✅ 27 (85% cov) | Medium |
 | 13 | Built-in Tools | ~25 | Medium |
 | 14 | Context & Credentials | ~25 | Medium |
 | 15 | CLI | ~10 | Low |

@@ -201,7 +201,7 @@ class SQLitePersistence(BasePersistence):
                 run.additional_context,
                 run.started_at.isoformat() if run.started_at else None,
                 run.finished_at.isoformat() if run.finished_at else None,
-                run.total_iterations, run.final_synthesis_output,
+                run.total_iterations, run.final_output,
                 run.execution_history, run.status, run.error_message,
                 run.metadata, now, now
             ))
@@ -224,7 +224,7 @@ class SQLitePersistence(BasePersistence):
                 run.agent_name, run.objective, run.additional_context,
                 run.started_at.isoformat() if run.started_at else None,
                 run.finished_at.isoformat() if run.finished_at else None,
-                run.total_iterations, run.final_synthesis_output,
+                run.total_iterations, run.final_output,
                 run.execution_history, run.status, run.error_message,
                 run.metadata, now, run_id
             ))
@@ -287,7 +287,7 @@ class SQLitePersistence(BasePersistence):
             started_at=datetime.fromisoformat(row["started_at"]) if row["started_at"] else None,
             finished_at=datetime.fromisoformat(row["finished_at"]) if row["finished_at"] else None,
             total_iterations=row["total_iterations"],
-            final_synthesis_output=row["final_synthesis_output"],
+            final_output=row["final_synthesis_output"],
             execution_history=row["execution_history"],
             status=row["status"],
             error_message=row["error_message"],
@@ -365,10 +365,14 @@ class SQLitePersistence(BasePersistence):
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 usage.agent_id, usage.run_id, usage.provider, usage.model,
-                usage.prompt, usage.prompt_length, usage.input_params,
-                usage.input_tokens, usage.output_tokens, usage.response_content,
-                usage.response_length, usage.usage_metrics, usage.status,
-                usage.error_message, usage.latency_ms, now
+                getattr(usage, "prompt", None),
+                getattr(usage, "prompt_length", None),
+                getattr(usage, "input_params", None),
+                usage.input_tokens, usage.output_tokens,
+                getattr(usage, "response_content", None),
+                getattr(usage, "response_length", None),
+                getattr(usage, "usage_metrics", None),
+                usage.status, usage.error_message, usage.latency_ms, now
             ))
             usage.id = cursor.lastrowid
 
@@ -405,17 +409,11 @@ class SQLitePersistence(BasePersistence):
             run_id=row["run_id"],
             provider=row["provider"],
             model=row["model"],
-            prompt=row["prompt"],
-            prompt_length=row["prompt_length"],
-            input_params=row["input_params"],
-            input_tokens=row["input_tokens"],
-            output_tokens=row["output_tokens"],
-            response_content=row["response_content"],
-            response_length=row["response_length"],
-            usage_metrics=row["usage_metrics"],
-            status=row["status"],
+            input_tokens=row["input_tokens"] or 0,
+            output_tokens=row["output_tokens"] or 0,
+            latency_ms=row["latency_ms"] or 0,
+            status=row["status"] or "success",
             error_message=row["error_message"],
-            latency_ms=row["latency_ms"],
             created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
         )
 

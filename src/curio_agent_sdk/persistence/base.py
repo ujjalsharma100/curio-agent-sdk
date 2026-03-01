@@ -11,14 +11,14 @@ shutdown = close, health_check).
 from __future__ import annotations
 
 import asyncio
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Any
 
 from curio_agent_sdk.base import Component
 from curio_agent_sdk.models.agent import AgentRun, AgentRunEvent, AgentLLMUsage
 
 
-class BasePersistence(ABC, Component):
+class BasePersistence(Component):
     """
     Abstract base class for persistence backends.
 
