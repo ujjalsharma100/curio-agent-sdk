@@ -29,7 +29,7 @@
 18. [Phase 14 — Context & Credentials](#18-phase-14--context--credentials) ✅
 19. [Phase 15 — CLI](#19-phase-15--cli) ✅
 20. [Phase 16 — Testing Utilities (Meta-Tests)](#20-phase-16--testing-utilities-meta-tests) ✅
-21. [Phase 17 — Integration Tests](#21-phase-17--integration-tests)
+21. [Phase 17 — Integration Tests](#21-phase-17--integration-tests) ✅
 22. [Phase 18 — End-to-End / Example Tests](#22-phase-18--end-to-end--example-tests)
 23. [Phase 19 — Performance & Stress Tests](#23-phase-19--performance--stress-tests)
 24. [Phase 20 — CI/CD & Coverage Configuration](#24-phase-20--cicd--coverage-configuration)
@@ -1919,10 +1919,10 @@ Each implementation has specific tests:
 
 ---
 
-## 21. Phase 17 — Integration Tests
+## 21. Phase 17 — Integration Tests ✅
 
 **Priority:** High
-**Estimated tests:** ~60
+**Estimated tests:** ~60 → **70 implemented**
 
 These tests validate cross-module interactions using MockLLM (no real API calls).
 
@@ -1931,14 +1931,14 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_tools.py`
 
 
-| #   | Test Case                         | What It Validates                                                    |
-| --- | --------------------------------- | -------------------------------------------------------------------- |
-| 1   | `test_agent_calls_single_tool`    | LLM requests tool → tool executed → result fed back → final response |
-| 2   | `test_agent_calls_multiple_tools` | Sequential tool calls                                                |
-| 3   | `test_agent_parallel_tool_calls`  | Parallel tool execution                                              |
-| 4   | `test_agent_tool_error_recovery`  | Tool error → error message → LLM handles gracefully                  |
-| 5   | `test_agent_tool_chain`           | Tool A output → Tool B input (multi-step)                            |
-| 6   | `test_agent_no_tool_calls`        | Simple text response (no tools needed)                               |
+| #   | Test Case                         | What It Validates                                                    | Status |
+| --- | --------------------------------- | -------------------------------------------------------------------- | ------ |
+| 1   | `test_agent_calls_single_tool`    | LLM requests tool → tool executed → result fed back → final response | ✅      |
+| 2   | `test_agent_calls_multiple_tools` | Sequential tool calls                                                | ✅      |
+| 3   | `test_agent_parallel_tool_calls`  | Parallel tool execution                                              | ✅      |
+| 4   | `test_agent_tool_error_recovery`  | Tool error → error message → LLM handles gracefully                  | ✅      |
+| 5   | `test_agent_tool_chain`           | Tool A output → Tool B input (multi-step)                            | ✅      |
+| 6   | `test_agent_no_tool_calls`        | Simple text response (no tools needed)                               | ✅      |
 
 
 ### 21.2 Agent + Memory
@@ -1946,12 +1946,12 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_memory.py`
 
 
-| #   | Test Case                           | What It Validates                 |
-| --- | ----------------------------------- | --------------------------------- |
-| 1   | `test_memory_injected_into_context` | Memory content added to messages  |
-| 2   | `test_memory_saved_after_run`       | Conversation saved to memory      |
-| 3   | `test_memory_across_runs`           | Second run uses memory from first |
-| 4   | `test_memory_tools_available`       | Memory management tools work      |
+| #   | Test Case                           | What It Validates                 | Status |
+| --- | ----------------------------------- | --------------------------------- | ------ |
+| 1   | `test_memory_injected_into_context` | Memory content added to messages  | ✅      |
+| 2   | `test_memory_saved_after_run`       | Conversation saved to memory      | ✅      |
+| 3   | `test_memory_across_runs`           | Second run uses memory from first | ✅      |
+| 4   | `test_memory_tools_available`       | Memory management tools work      | ✅      |
 
 
 ### 21.3 Agent + Middleware
@@ -1959,13 +1959,13 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_middleware.py`
 
 
-| #   | Test Case                          | What It Validates                 |
-| --- | ---------------------------------- | --------------------------------- |
-| 1   | `test_logging_middleware_logs_run` | Full run logged                   |
-| 2   | `test_cost_tracker_tracks_run`     | Costs tracked across calls        |
-| 3   | `test_cost_budget_stops_run`       | Budget exceeded stops agent       |
-| 4   | `test_middleware_chain`            | Multiple middleware work together |
-| 5   | `test_guardrails_block_injection`  | Injection attempt blocked         |
+| #   | Test Case                          | What It Validates                 | Status |
+| --- | ---------------------------------- | --------------------------------- | ------ |
+| 1   | `test_logging_middleware_logs_run` | Full run logged                   | ✅      |
+| 2   | `test_cost_tracker_tracks_run`     | Costs tracked across calls        | ✅      |
+| 3   | `test_cost_budget_stops_run`       | Budget exceeded stops agent       | ✅      |
+| 4   | `test_middleware_chain`            | Multiple middleware work together | ✅      |
+| 5   | `test_guardrails_block_injection`  | Injection attempt blocked         | ✅      |
 
 
 ### 21.4 Agent + Hooks
@@ -1973,12 +1973,12 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_hooks.py`
 
 
-| #   | Test Case                    | What It Validates                  |
-| --- | ---------------------------- | ---------------------------------- |
-| 1   | `test_full_hook_lifecycle`   | All hooks fire in order during run |
-| 2   | `test_hook_modifies_request` | Hook modifies LLM request          |
-| 3   | `test_hook_cancels_tool`     | Hook prevents tool execution       |
-| 4   | `test_hook_error_handling`   | Hook error doesn't crash agent     |
+| #   | Test Case                    | What It Validates                  | Status |
+| --- | ---------------------------- | ---------------------------------- | ------ |
+| 1   | `test_full_hook_lifecycle`   | All hooks fire in order during run | ✅      |
+| 2   | `test_hook_modifies_request` | Hook modifies LLM request          | ✅      |
+| 3   | `test_hook_cancels_tool`     | Hook prevents tool execution       | ✅      |
+| 4   | `test_hook_error_handling`   | Hook error doesn't crash agent     | ✅      |
 
 
 ### 21.5 Agent + State/Checkpoint
@@ -1986,11 +1986,11 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_state.py`
 
 
-| #   | Test Case                            | What It Validates                     |
-| --- | ------------------------------------ | ------------------------------------- |
-| 1   | `test_state_checkpointed_during_run` | Checkpoint saved after each iteration |
-| 2   | `test_resume_from_checkpoint`        | Resume run from checkpoint            |
-| 3   | `test_state_store_persists`          | State survives agent restart          |
+| #   | Test Case                            | What It Validates                     | Status |
+| --- | ------------------------------------ | ------------------------------------- | ------ |
+| 1   | `test_state_checkpointed_during_run` | Checkpoint saved after each iteration | ✅      |
+| 2   | `test_resume_from_checkpoint`        | Resume run from checkpoint            | ✅      |
+| 3   | `test_state_store_persists`          | State survives agent restart          | ✅      |
 
 
 ### 21.6 Agent + Sessions
@@ -1998,11 +1998,11 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_sessions.py`
 
 
-| #   | Test Case                      | What It Validates             |
-| --- | ------------------------------ | ----------------------------- |
-| 1   | `test_multi_turn_conversation` | Messages persist across turns |
-| 2   | `test_session_isolation`       | Different sessions don't mix  |
-| 3   | `test_session_resume`          | Resume existing session       |
+| #   | Test Case                      | What It Validates             | Status |
+| --- | ------------------------------ | ----------------------------- | ------ |
+| 1   | `test_multi_turn_conversation` | Messages persist across turns | ✅      |
+| 2   | `test_session_isolation`       | Different sessions don't mix  | ✅      |
+| 3   | `test_session_resume`          | Resume existing session       | ✅      |
 
 
 ### 21.7 Agent + Permissions
@@ -2010,11 +2010,11 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_permissions.py`
 
 
-| #   | Test Case                    | What It Validates                    |
-| --- | ---------------------------- | ------------------------------------ |
-| 1   | `test_allowed_tool_executes` | Allowed tools run normally           |
-| 2   | `test_denied_tool_blocked`   | Denied tools return permission error |
-| 3   | `test_ask_user_flow`         | Human-in-the-loop confirmation       |
+| #   | Test Case                    | What It Validates                    | Status |
+| --- | ---------------------------- | ------------------------------------ | ------ |
+| 1   | `test_allowed_tool_executes` | Allowed tools run normally           | ✅      |
+| 2   | `test_denied_tool_blocked`   | Denied tools return permission error | ✅      |
+| 3   | `test_ask_user_flow`         | Human-in-the-loop confirmation       | ✅      |
 
 
 ### 21.8 Agent + Skills
@@ -2022,11 +2022,11 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_skills.py`
 
 
-| #   | Test Case                     | What It Validates         |
-| --- | ----------------------------- | ------------------------- |
-| 1   | `test_invoke_skill`           | Skill activated and used  |
-| 2   | `test_skill_tools_available`  | Skill tools accessible    |
-| 3   | `test_skill_prompt_injection` | Skill system prompt added |
+| #   | Test Case                     | What It Validates         | Status |
+| --- | ----------------------------- | ------------------------- | ------ |
+| 1   | `test_invoke_skill`           | Skill activated and used  | ✅      |
+| 2   | `test_skill_tools_available`  | Skill tools accessible    | ✅      |
+| 3   | `test_skill_prompt_injection` | Skill system prompt added | ✅      |
 
 
 ### 21.9 Agent + Subagents
@@ -2034,11 +2034,11 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_subagents.py`
 
 
-| #   | Test Case                        | What It Validates                |
-| --- | -------------------------------- | -------------------------------- |
-| 1   | `test_spawn_subagent`            | Subagent runs and returns result |
-| 2   | `test_subagent_tool_inheritance` | Tools inherited when configured  |
-| 3   | `test_agent_handoff`             | Handoff context preserved        |
+| #   | Test Case                        | What It Validates                | Status |
+| --- | -------------------------------- | -------------------------------- | ------ |
+| 1   | `test_spawn_subagent`            | Subagent runs and returns result | ✅      |
+| 2   | `test_subagent_tool_inheritance` | Tools inherited when configured  | ✅      |
+| 3   | `test_agent_handoff`             | Handoff context preserved        | ✅      |
 
 
 ### 21.10 Agent + Plan Mode
@@ -2046,11 +2046,11 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_plan_mode.py`
 
 
-| #   | Test Case                              | What It Validates                 |
-| --- | -------------------------------------- | --------------------------------- |
-| 1   | `test_plan_mode_workflow`              | Plan → approve → execute          |
-| 2   | `test_read_only_tools_during_planning` | Write tools blocked in planning   |
-| 3   | `test_todo_management`                 | Todos created/updated during plan |
+| #   | Test Case                              | What It Validates                 | Status |
+| --- | -------------------------------------- | --------------------------------- | ------ |
+| 1   | `test_plan_mode_workflow`              | Plan → approve → execute          | ✅      |
+| 2   | `test_read_only_tools_during_planning` | Write tools blocked in planning   | ✅      |
+| 3   | `test_todo_management`                 | Todos created/updated during plan | ✅      |
 
 
 ### 21.11 Agent + Structured Output
@@ -2058,11 +2058,11 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **File:** `tests/integration/test_agent_with_structured.py`
 
 
-| #   | Test Case                           | What It Validates                   |
-| --- | ----------------------------------- | ----------------------------------- |
-| 1   | `test_pydantic_response_format`     | Agent returns parsed Pydantic model |
-| 2   | `test_dict_response_format`         | Agent returns parsed dict           |
-| 3   | `test_structured_output_validation` | Invalid output handling             |
+| #   | Test Case                           | What It Validates                   | Status |
+| --- | ----------------------------------- | ----------------------------------- | ------ |
+| 1   | `test_pydantic_response_format`     | Agent returns parsed Pydantic model | ✅      |
+| 2   | `test_dict_response_format`         | Agent returns parsed dict           | ✅      |
+| 3   | `test_structured_output_validation` | Invalid output handling             | ✅      |
 
 
 ### 21.12 Other Integration Tests
@@ -2070,18 +2070,18 @@ These tests validate cross-module interactions using MockLLM (no real API calls)
 **Files:** Various integration test files
 
 
-| File                            | Tests | Validates                                     |
-| ------------------------------- | ----- | --------------------------------------------- |
-| `test_agent_streaming.py`       | 3     | Streaming events during agent run             |
-| `test_agent_builder_full.py`    | 3     | Full builder → run pipeline                   |
-| `test_middleware_pipeline.py`   | 3     | Multiple middleware stacked                   |
-| `test_memory_persistence.py`    | 3     | Memory + persistence backend                  |
-| `test_llm_routing.py`           | 3     | Client + Router + Provider chain              |
-| `test_mcp_integration.py`       | 3     | MCP client + bridge + adapter + agent         |
-| `test_connector_integration.py` | 3     | Connector + bridge + agent                    |
-| `test_plugin_system.py`         | 3     | Plugin discovery + registration + agent       |
-| `test_event_bus_integration.py` | 3     | EventBus + agent lifecycle                    |
-| `test_cost_budget.py`           | 3     | Cost tracking + budget enforcement end-to-end |
+| File                            | Tests | Validates                                     | Status |
+| ------------------------------- | ----- | --------------------------------------------- | ------ |
+| `test_agent_streaming.py`       | 3     | Streaming events during agent run             | ✅      |
+| `test_agent_builder_full.py`    | 3     | Full builder → run pipeline                   | ✅      |
+| `test_middleware_pipeline.py`   | 3     | Multiple middleware stacked                   | ✅      |
+| `test_memory_persistence.py`    | 3     | Memory + persistence backend                  | ✅      |
+| `test_llm_routing.py`           | 3     | Client + Router + Provider chain              | ✅      |
+| `test_mcp_integration.py`       | 3     | MCP client + bridge + adapter + agent         | ✅      |
+| `test_connector_integration.py` | 3     | Connector + bridge + agent                    | ✅      |
+| `test_plugin_system.py`         | 3     | Plugin discovery + registration + agent       | ✅      |
+| `test_event_bus_integration.py` | 3     | EventBus + agent lifecycle                    | ✅      |
+| `test_cost_budget.py`           | 3     | Cost tracking + budget enforcement end-to-end | ✅      |
 
 
 ---
@@ -2519,7 +2519,7 @@ async def test_checkpoint_serialize_snapshot(snapshot):
 | 14        | Context & Credentials                   | ✅ 25 (64% cov)   | Medium    |
 | 15        | CLI                                     | ✅ 9 (43% cov)    | Low       |
 | 16        | Testing Utilities (Meta)                | ✅ 55 (72% cov)   | High      |
-| 17        | Integration Tests                       | ~60              | High      |
+| 17        | Integration Tests                       | ✅ 70 (39% cov)   | High      |
 | 18        | E2E / Example Tests                     | ~25              | Medium    |
 | 19        | Performance Tests                       | ~12              | Low       |
 | 20        | CI/CD & Coverage                        | —                | Medium    |
