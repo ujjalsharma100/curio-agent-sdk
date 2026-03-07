@@ -822,7 +822,12 @@ class Runtime:
             agent_id=agent_id,
             iteration=state.iteration,
             state=state,
+            output=output,
             output_length=len(output),
+            result={
+                "output": output,
+                "tool_calls": state.total_tool_calls,
+            },
         )
 
         return AgentRunResult(

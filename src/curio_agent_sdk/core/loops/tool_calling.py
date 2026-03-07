@@ -7,14 +7,21 @@ This is the most common agent pattern:
 3. If LLM returns text (no tool calls) -> done
 
 Used by: OpenAI Agents, Anthropic tool use, general-purpose agents.
+
+Emits llm.call.before / llm.call.after / llm.call.error so hook consumers
+(e.g. run logger) get full request/response without requiring middleware.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any, AsyncIterator
+import time
+from typing import Any, AsyncIterator, TYPE_CHECKING
 
 from curio_agent_sdk.core.loops.base import AgentLoop
+
+if TYPE_CHECKING:
+    from curio_agent_sdk.core.events import HookRegistry
 from curio_agent_sdk.core.state import AgentState
 from curio_agent_sdk.core.tools.executor import ToolExecutor
 from curio_agent_sdk.core.tools.registry import ToolRegistry
@@ -48,6 +55,7 @@ class ToolCallingLoop(AgentLoop):
         agent_id: str | None = None,
         parallel_tool_calls: bool = True,
         response_format: type | dict[str, Any] | None = None,
+        hook_registry: HookRegistry | None = None,
     ):
         self.llm = llm
         self.tool_executor = tool_executor
@@ -59,6 +67,10 @@ class ToolCallingLoop(AgentLoop):
         self.parallel_tool_calls = parallel_tool_calls
         # When set, request structured output (only applied when no tools to avoid API conflicts)
         self.response_format: type | dict[str, Any] | None = response_format
+        # Optional; when set, loop emits llm.call.before/after/error for run logging etc.
+        self.hook_registry: HookRegistry | None = hook_registry
+        # Optional; e.g. "groq:llama-3.3-70b-versatile" set by Agent for run-logger model line
+        self.effective_model: str | None = None
 
     def _fit_messages(self, messages: list[Message], tools: list | None) -> list[Message]:
         """Apply context window management if a context_manager is set."""
@@ -103,8 +115,51 @@ class ToolCallingLoop(AgentLoop):
             },
         )
 
+        # Emit llm.call.before (so run logger etc. get full request without middleware)
+        if self.hook_registry:
+            from curio_agent_sdk.core.events import HookContext, LLM_CALL_BEFORE, LLM_CALL_AFTER, LLM_CALL_ERROR
+            before_ctx = HookContext(
+                event=LLM_CALL_BEFORE,
+                data={"request": request, "model_for_log": getattr(self, "effective_model", None) or getattr(request, "model", None)},
+                run_id=self.run_id or "",
+                agent_id=self.agent_id or "",
+                iteration=state.iteration,
+            )
+            await self.hook_registry.emit(LLM_CALL_BEFORE, before_ctx)
+            if before_ctx.cancelled:
+                state._done = True
+                return state
+
         # Call LLM
-        response = await self.llm.call(request, run_id=self.run_id, agent_id=self.agent_id)
+        start = time.monotonic()
+        try:
+            response = await self.llm.call(request, run_id=self.run_id, agent_id=self.agent_id)
+        except Exception as e:
+            if self.hook_registry:
+                from curio_agent_sdk.core.events import HookContext, LLM_CALL_ERROR
+                err_ctx = HookContext(
+                    event=LLM_CALL_ERROR,
+                    data={"request": request, "error": e},
+                    run_id=self.run_id or "",
+                    agent_id=self.agent_id or "",
+                    iteration=state.iteration,
+                )
+                await self.hook_registry.emit(LLM_CALL_ERROR, err_ctx)
+            raise
+        duration_ms = int((time.monotonic() - start) * 1000)
+
+        # Emit llm.call.after
+        if self.hook_registry:
+            from curio_agent_sdk.core.events import HookContext, LLM_CALL_AFTER
+            after_ctx = HookContext(
+                event=LLM_CALL_AFTER,
+                data={"request": request, "response": response, "duration": duration_ms},
+                run_id=self.run_id or "",
+                agent_id=self.agent_id or "",
+                iteration=state.iteration,
+            )
+            await self.hook_registry.emit(LLM_CALL_AFTER, after_ctx)
+
         state.record_llm_call(response.usage.input_tokens, response.usage.output_tokens)
         state._last_finish_reason = response.finish_reason
 

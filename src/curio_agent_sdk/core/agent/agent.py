@@ -263,6 +263,7 @@ class Agent:
         )
 
         # ── LLM Client ──────────────────────────────────────────────
+        self._model_str: str | None = model or None  # e.g. "groq:llama-3.3-70b-versatile" for run logs
         if llm:
             self.llm = llm
         elif model:
@@ -370,6 +371,10 @@ class Agent:
             self.loop.llm = self.llm
         if hasattr(self.loop, "tool_executor"):
             self.loop.tool_executor = self.executor
+        if hasattr(self.loop, "hook_registry"):
+            self.loop.hook_registry = self.hook_registry
+        if hasattr(self.loop, "effective_model") and getattr(self, "_model_str", None):
+            self.loop.effective_model = self._model_str
         if getattr(self, "runtime", None) is not None:
             self.runtime.llm = self.llm
             if hasattr(self.runtime, "tool_executor"):

@@ -163,6 +163,8 @@ from curio_agent_sdk.core.context import (
     InstructionLoader,
     load_instructions_from_file,
 )
+# Optional utilities (run logger for debug/audit)
+from curio_agent_sdk.utils import RunLogger, create_run_logger, use_run_logger
 from curio_agent_sdk.core.extensions import (
     Skill,
     SkillRegistry,
@@ -395,6 +397,9 @@ __all__ = [
     "parse_structured_output",
     # Utilities
     "ContextManager",
+    "RunLogger",
+    "create_run_logger",
+    "use_run_logger",
     # Plugin system
     "Plugin",
     "apply_plugins_to_builder",

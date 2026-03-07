@@ -212,7 +212,7 @@ class ToolExecutor:
                         from curio_agent_sdk.core.events import HookContext, TOOL_CALL_AFTER
                         ctx = HookContext(
                             event=TOOL_CALL_AFTER,
-                            data={"tool_name": tool_name, "args": args, "result": cached},
+                            data={"tool_name": tool_name, "args": args, "result": cached, "tool_call_id": tool_call.id},
                             run_id=getattr(self, "run_id", "") or "",
                             agent_id=getattr(self, "agent_id", "") or "",
                         )
@@ -260,7 +260,7 @@ class ToolExecutor:
                 from curio_agent_sdk.core.events import HookContext, TOOL_CALL_AFTER
                 ctx = HookContext(
                     event=TOOL_CALL_AFTER,
-                    data={"tool_name": tool_name, "args": args, "result": result},
+                    data={"tool_name": tool_name, "args": args, "result": result, "tool_call_id": tool_call.id},
                     run_id=getattr(self, "run_id", "") or "",
                     agent_id=getattr(self, "agent_id", "") or "",
                 )

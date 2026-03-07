@@ -67,6 +67,7 @@ markers = [
     "unit: Unit tests",
     "integration: Integration tests",
     "e2e: End-to-end tests",
+    "verify: Verify tests (smoke / SDK sanity without live APIs)",
     "slow: Performance/stress tests (may take > 10s)",
     "live: Tests requiring real API keys",
 ]

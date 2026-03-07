@@ -155,6 +155,23 @@ class TestToolSchema:
         assert llm.parameters["type"] == "object"
         assert "q" in llm.parameters["properties"]
 
+    def test_to_llm_schema_direct_object_no_ref(self):
+        """LLM providers (OpenAI, Groq) require parameters to be a direct JSON object, not $ref/definitions."""
+        schema = ToolSchema(
+            name="calculator",
+            description="Evaluate expression",
+            parameters=[
+                ToolParameter(name="expression", type="string", description="Math expression"),
+            ],
+        )
+        llm = schema.to_llm_schema()
+        params = llm.parameters
+        assert "$ref" not in params
+        assert "definitions" not in params
+        assert "$defs" not in params
+        assert params.get("type") == "object"
+        assert "properties" in params
+
     def test_validate_valid_args(self):
         schema = ToolSchema(
             name="fn",

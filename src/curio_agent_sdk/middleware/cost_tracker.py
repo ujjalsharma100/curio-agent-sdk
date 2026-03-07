@@ -37,7 +37,11 @@ DEFAULT_PRICING: dict[str, dict[str, float]] = {
     "claude-3-5-sonnet": {"input": 3.00, "output": 15.00},
     "claude-3-haiku": {"input": 0.25, "output": 1.25},
     "llama-3.1-8b-instant": {"input": 0.05, "output": 0.08},
-    "llama-3.1-70b-versatile": {"input": 0.59, "output": 0.79},
+    "llama-3.3-70b-versatile": {"input": 0.59, "output": 0.79},
+    "openai/gpt-oss-20b": {"input": 0.075, "output": 0.30},
+    "meta-llama/llama-4-scout-17b-16e-instruct": {"input": 0.11, "output": 0.34},
+    "moonshotai/kimi-k2-instruct-0905": {"input": 1.00, "output": 3.00},
+    "qwen/qwen3-32b": {"input": 0.29, "output": 0.59},
 }
 
 

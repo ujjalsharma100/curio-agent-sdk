@@ -133,7 +133,7 @@ TIER3_MODELS=anthropic:claude-sonnet-4-6,openai:gpt-4o
 ```python
 agent = Agent(model="openai:gpt-4o", ...)
 agent = Agent(model="anthropic:claude-sonnet-4-6", ...)
-agent = Agent(model="groq:llama-3.1-70b-versatile", ...)
+agent = Agent(model="groq:llama-3.3-70b-versatile", ...)
 agent = Agent(model="ollama:llama3.1:8b", ...)
 ```
 
